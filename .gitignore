@@ -1,0 +1,8 @@
+__pycache__/
+*.py[cod]
+*$py.class
+.env
+suumo-scraper-460206-6734b711c3fa.json
+token.json
+venv/
+.DS_Store

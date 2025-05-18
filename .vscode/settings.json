@@ -1,0 +1,18 @@
+{
+  "python.defaultInterpreterPath": "${workspaceFolder}/venv/bin/python",
+
+  // リンター設定
+  "python.lint.enabled": true,
+  "python.lint.pylintEnabled": true,
+  "python.lint.pylintArgs": ["--disable=C0111"],
+
+  // フォーマッター設定
+  "editor.formatOnSave": true,
+  "[python]": {
+    "editor.defaultFormatter": "ms-python.black-formatter"
+  },
+
+  // テスト設定
+  "python.testing.unittestEnabled": true,
+  "python.testing.pytestEnabled": false
+}

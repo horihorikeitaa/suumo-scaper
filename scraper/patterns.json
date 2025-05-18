@@ -1,0 +1,38 @@
+{
+  "favorite": {
+    "pattern_identifier": "#js-view_gallery",
+    "selectors": {
+      "property_name": "#wrapper > div.section_h1 > div.section_h1-header > h1",
+      "address": "#js-view_gallery > div > div.property_view-detail > div:nth-child(3) > div.l-property_view_detail-sub > div:nth-child(2) > div > div.property_view_detail-body > div",
+      "access": "#js-view_gallery > div > div.property_view-detail > div:nth-child(3) > div.l-property_view_detail-sub > div:nth-child(1) > div > div.property_view_detail-body > div",
+      "rent": "#js-view_gallery > div > div.property_view-detail > div:nth-child(2) > div > div.property_view_detail-body > div > div.property_view_detail-info-main > div > div.property_view_main-emphasis",
+      "management_fee": "#js-view_gallery > div > div.property_view-detail > div:nth-child(2) > div > div.property_view_detail-body > div > div.property_view_detail-info-main > div > div.property_view_main-data > div > div.property_data-body",
+      "deposit": "#js-view_gallery > div > div.property_view-detail > div:nth-child(2) > div > div.property_view_detail-body > div > div.property_view_detail-info-sub > ul > li:nth-child(1) > div > div.property_data-body > span:nth-child(1)",
+      "key_money": "#js-view_gallery > div > div.property_view-detail > div:nth-child(2) > div > div.property_view_detail-body > div > div.property_view_detail-info-sub > ul > li:nth-child(1) > div > div.property_data-body > span:nth-child(3)",
+      "layout": "#js-view_gallery > div > div.property_view-detail > div:nth-child(3) > div.l-property_view_detail-main > div > div.property_view_detail-body > ul > li:nth-child(1) > div > div.property_data-body",
+      "area": "#js-view_gallery > div > div.property_view-detail > div:nth-child(3) > div.l-property_view_detail-main > div > div.property_view_detail-body > ul > li:nth-child(2) > div > div.property_data-body",
+      "direction": "#js-view_gallery > div > div.property_view-detail > div:nth-child(3) > div.l-property_view_detail-main > div > div.property_view_detail-body > ul > li:nth-child(3) > div > div.property_data-body",
+      "building_type": "#js-view_gallery > div > div.property_view-detail > div:nth-child(3) > div.l-property_view_detail-main > div > div.property_view_detail-body > ul > li:nth-child(4) > div > div.property_data-body",
+      "age": "#js-view_gallery > div > div.property_view-detail > div:nth-child(3) > div.l-property_view_detail-main > div > div.property_view_detail-body > ul > li:nth-child(5) > div > div.property_data-body",
+      "layout_detail": "#contents > div:nth-child(4) > table > tbody > tr:nth-child(1) > td:nth-child(2)",
+      "structure": "#contents > div:nth-child(4) > table > tbody > tr:nth-child(1) > td:nth-child(4)",
+      "floor": "#contents > div:nth-child(4) > table > tbody > tr:nth-child(2) > td:nth-child(2)",
+      "move_in": "#contents > div:nth-child(4) > table > tbody > tr:nth-child(6) > td:nth-child(2)",
+      "conditions": "#contents > div:nth-child(4) > table > tbody > tr:nth-child(7) > td:nth-child(2)",
+      "surrounding": "#contents > div:nth-child(4) > table > tbody > tr:nth-child(15) > td.data_around > ul > li",
+      "update_date": "#contents > div:nth-child(4) > table > tbody > tr:nth-child(9) > td:nth-child(2)"
+    },
+    "selector_types": {
+      "surrounding": "multiple",
+      "access": "multiple"
+    },
+    "processor_rules": {
+      "rent": "currency",
+      "management_fee": "currency",
+      "deposit": "currency",
+      "key_money": "currency",
+      "area": "number",
+      "age": "age"
+    }
+  }
+}

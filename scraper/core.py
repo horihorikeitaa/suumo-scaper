@@ -144,8 +144,32 @@ def save_html_for_debug(url, html_content):
     Returns:
         保存したファイルパス
     """
+    # 本番環境ではHTMLを保存しない設定を追加
+    if not config.SAVE_DEBUG_HTML:
+        logging.debug("デバッグHTMLの保存をスキップ（設定により無効）")
+        return None
+
     debug_dir = "debug_data"
     os.makedirs(debug_dir, exist_ok=True)
+
+    # 古いファイルを削除する（オプション）
+    if config.MAX_DEBUG_FILES > 0:
+        try:
+            files = sorted(
+                [
+                    os.path.join(debug_dir, f)
+                    for f in os.listdir(debug_dir)
+                    if f.endswith(".html")
+                ],
+                key=os.path.getctime,
+            )
+            # 最大ファイル数を超えた場合、古いファイルを削除
+            if len(files) >= config.MAX_DEBUG_FILES:
+                for old_file in files[: len(files) - config.MAX_DEBUG_FILES + 1]:
+                    os.remove(old_file)
+                    logging.debug(f"古いデバッグファイルを削除: {old_file}")
+        except Exception as e:
+            logging.warning(f"古いデバッグファイルの削除に失敗: {e}")
 
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     property_id = url.split("_")[-1].split("/")[0] if "_" in url else "unknown"

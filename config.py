@@ -84,3 +84,7 @@ COLUMNS = {
 # 各モードの設定
 MODE_NEW_ONLY = "new_only"
 MODE_FULL_UPDATE = "full_update"
+
+# デバッグHTMLの保存設定
+SAVE_DEBUG_HTML = False  # 本番環境ではFalse、開発環境ではTrue
+MAX_DEBUG_FILES = 10  # 保存する最大ファイル数（0は無制限）

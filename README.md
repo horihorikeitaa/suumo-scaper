@@ -19,6 +19,7 @@ suumo-scraper/
 │       ├── __init__.py
 │       ├── main.py
 │       ├── config.py
+│       ├── cloud_function.py  # Cloud Run用のエントリーポイント
 │       ├── scraper/
 │       │   ├── __init__.py
 │       │   ├── core.py
@@ -83,16 +84,101 @@ python -m src.suumo_scraper.main --url [URL]
 python -m src.suumo_scraper.main --debug
 ```
 
-## Google Cloud Run での実行
+## Google Cloud Run でのデプロイと実行
 
-このプロジェクトは Google Cloud Run でのデプロイに対応しています。デプロイには以下のコマンドを使用します：
+このプロジェクトは Google Cloud Run でのデプロイに対応しています。
+
+### 事前準備
+
+1. Google Cloud SDK がインストールされていることを確認
+2. プロジェクトの設定
 
 ```bash
+gcloud config set project [YOUR_PROJECT_ID]
+```
+
+### 認証情報の管理
+
+Cloud Run 環境では、Google 認証情報を以下のいずれかの方法で管理できます：
+
+#### 1. シークレットマネージャーを使用する方法（推奨）
+
+```bash
+# シークレットマネージャーに認証ファイルを登録
+gcloud secrets create suumo-scraper-credentials --data-file="suumo-scraper-460206-6734b711c3fa.json"
+
+# シークレットをCloud Runからアクセスできるように権限を付与
+gcloud secrets add-iam-policy-binding suumo-scraper-credentials \
+    --member="serviceAccount:[YOUR_SERVICE_ACCOUNT]@[YOUR_PROJECT_ID].iam.gserviceaccount.com" \
+    --role="roles/secretmanager.secretAccessor"
+```
+
+#### 2. 環境変数として設定する方法
+
+```bash
+# 認証ファイルのJSON内容を環境変数として設定
+export CREDS_JSON=$(cat suumo-scraper-460206-6734b711c3fa.json | jq -c)
+```
+
+### ビルドとデプロイ
+
+```bash
+# コンテナをビルドしてContainer Registryにプッシュ
+gcloud builds submit --tag gcr.io/[YOUR_PROJECT_ID]/suumo-scraper
+
+# Cloud Runサービスをデプロイ（シークレットマネージャーを使用する場合）
 gcloud run deploy suumo-scraper \
-  --source . \
+  --image gcr.io/[YOUR_PROJECT_ID]/suumo-scraper \
   --platform managed \
   --region asia-northeast1 \
-  --allow-unauthenticated
+  --allow-unauthenticated \
+  --set-secrets="GOOGLE_APPLICATION_CREDENTIALS=/secrets/credentials.json:suumo-scraper-credentials:latest"
+
+# 環境変数を使用する場合
+gcloud run deploy suumo-scraper \
+  --image gcr.io/[YOUR_PROJECT_ID]/suumo-scraper \
+  --platform managed \
+  --region asia-northeast1 \
+  --allow-unauthenticated \
+  --set-env-vars="GOOGLE_APPLICATION_CREDENTIALS_JSON=$CREDS_JSON"
+```
+
+### Google Apps Script からの呼び出し
+
+Cloud Run デプロイ後、GAS から以下のように HTTP リクエストを送信できます：
+
+```javascript
+function callSuumoScraper(mode) {
+  const url = "https://suumo-scraper-xxxxx-an.a.run.app"; // Cloud RunのURL
+
+  const options = {
+    method: "post",
+    contentType: "application/json",
+    payload: JSON.stringify({
+      mode: mode, // 'new_only' または 'full_update'
+    }),
+    muteHttpExceptions: true,
+  };
+
+  try {
+    const response = UrlFetchApp.fetch(url, options);
+    const result = JSON.parse(response.getContentText());
+    return result;
+  } catch (e) {
+    console.error("エラーが発生しました: " + e.toString());
+    return { status: "error", error_message: e.toString() };
+  }
+}
+
+// 新規物件追加ボタン用の関数
+function addNewProperties() {
+  return callSuumoScraper("new_only");
+}
+
+// 全物件更新ボタン用の関数
+function updateAllProperties() {
+  return callSuumoScraper("full_update");
+}
 ```
 
 ## 開発

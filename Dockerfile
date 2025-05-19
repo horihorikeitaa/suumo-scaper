@@ -2,22 +2,19 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# ビルド依存関係のインストール
-RUN pip install --no-cache-dir pipenv
-
-# Pipfileをコピーして依存関係をインストール
-COPY Pipfile Pipfile.lock* ./
-RUN pipenv install --deploy --system
-
-# アプリケーションコードをコピー
+# アプリケーションコードとセットアップをコピー
 COPY src/ ./src/
 COPY setup.py ./
 
-# 証明書ファイルをコピー（必要な場合）
-COPY *.json ./
+# setup.pyから依存関係をインストール
+RUN pip install --no-cache-dir -e .
+
+# functions-frameworkを明示的にインストール
+RUN pip install --no-cache-dir functions-framework
 
 # 環境変数の設定
 ENV PYTHONPATH=/app
+ENV PORT=8080
 
-# アプリケーションを実行
-CMD ["python", "-m", "src.suumo_scraper.main"] 
+# Cloud Functionsのエントリーポイントを指定
+CMD exec functions-framework --target=suumo_scraper --source=src/suumo_scraper/cloud_function.py --port=$PORT

@@ -1,0 +1,44 @@
+# 認証情報ファイルを除外
+*.json
+!package.json
+!patterns.json
+
+# Git関連
+.git/
+.gitignore
+
+# Python関連
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+.installed.cfg
+*.egg
+
+# テスト関連
+tests/
+.pytest_cache/
+
+# VSCode設定
+.vscode/
+
+# データディレクトリ
+data/
+
+# その他
+*.log
+*.bak
+.DS_Store

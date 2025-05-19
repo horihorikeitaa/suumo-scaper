@@ -70,8 +70,8 @@ def debug_scrape_url(url: str, save_html: bool = True):
         }
 
         # パターン判別
-        detected_pattern = detect_pattern(soup)
-        debug_info["detected_pattern"] = detected_pattern
+        detected_patterns = detect_pattern(soup)
+        debug_info["detected_patterns"] = detected_patterns
 
         # 各パターンの検出を確認
         for pattern_name, pattern_config in patterns.items():
@@ -83,37 +83,39 @@ def debug_scrape_url(url: str, save_html: bool = True):
                     "identifier": pattern_identifier,
                 }
 
-        # 検出されたパターンのセレクタ情報を詳細に調査
-        if detected_pattern:
-            pattern_config = patterns[detected_pattern]
+        # 検出された各パターンのセレクタ情報を詳細に調査
+        for pattern_name in detected_patterns:
+            pattern_config = patterns[pattern_name]
             selectors = pattern_config.get("selectors", {})
+            selector_types = pattern_config.get("selector_types", {})
+            processor_rules = pattern_config.get("processor_rules", {})
 
             # 各セレクタの動作を確認
             for key, selector in selectors.items():
-                selector_type = pattern_config.get("selector_types", {}).get(
-                    key, "single"
-                )
+                selector_type = selector_types.get(key, "single")
                 if selector_type == "multiple":
                     elements = soup.select(selector)
-                    debug_info["selectors"][key] = {
+                    debug_info["selectors"][f"{pattern_name}.{key}"] = {
                         "selector": selector,
                         "type": selector_type,
                         "found": len(elements) > 0,
                         "count": len(elements),
                     }
                     if len(elements) > 0:
-                        debug_info["raw_data"][key] = [
+                        debug_info["raw_data"][f"{pattern_name}.{key}"] = [
                             el.text.strip() for el in elements[:5]
                         ]  # 最初の5つだけ表示
                 else:
                     element = soup.select_one(selector)
-                    debug_info["selectors"][key] = {
+                    debug_info["selectors"][f"{pattern_name}.{key}"] = {
                         "selector": selector,
                         "type": selector_type,
                         "found": element is not None,
                     }
                     if element:
-                        debug_info["raw_data"][key] = element.text.strip()
+                        debug_info["raw_data"][
+                            f"{pattern_name}.{key}"
+                        ] = element.text.strip()
 
         # パーサーで処理してみる
         try:
@@ -128,9 +130,9 @@ def debug_scrape_url(url: str, save_html: bool = True):
         return debug_info
 
     except Exception as e:
-        print(f"デバッグ解析中にエラーが発生: {e}")
+        print(f"デバッグ処理中にエラーが発生しました: {e}")
         return {
-            "url": url,
             "error": str(e),
+            "url": url,
             "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         }

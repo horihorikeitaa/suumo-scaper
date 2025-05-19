@@ -40,13 +40,13 @@ class BaseParser:
         self.pattern_name = pattern_name
         self.soup = soup
         self.url = url
+        self.patterns = load_patterns()
 
         # パターン定義の読み込み
-        patterns = load_patterns()
-        if pattern_name not in patterns:
+        if pattern_name not in self.patterns:
             raise ValueError(f"Unknown pattern: {pattern_name}")
 
-        self.config = patterns[pattern_name]
+        self.config = self.patterns[pattern_name]
         self.selectors = self.config.get("selectors", {})
         self.selector_types = self.config.get("selector_types", {})
         self.processor_rules = self.config.get("processor_rules", {})
@@ -141,8 +141,86 @@ class FavoritePatternParser(BaseParser):
     お気に入りパターン用のパーサー
     """
 
-    def __init__(self, soup, url):
-        super().__init__("favorite", soup, url)
+    def __init__(self, soup, url, pattern_name="favorite_gallery"):
+        super().__init__(pattern_name, soup, url)
+        self.soup = soup
+        self.url = url
+        # 追加のパターンを読み込む
+        self.additional_patterns = {}
+        for pattern_name, pattern_config in self.patterns.items():
+            if (
+                pattern_name != self.pattern_name
+                and "pattern_identifier" in pattern_config
+            ):
+                identifier = pattern_config["pattern_identifier"]
+                if soup.select_one(identifier):
+                    self.additional_patterns[pattern_name] = pattern_config
+
+    def get_from_any_pattern(self, key):
+        """
+        すべてのパターンから指定されたキーの要素を検索して最初に見つかった値を返す
+
+        Args:
+            key: セレクタのキー
+
+        Returns:
+            要素のテキスト、見つからなかった場合は空文字列
+        """
+        # まず現在のパターンから検索
+        value = self.get_text(key)
+        if value:
+            return value
+
+        # 追加のパターンから検索
+        for pattern_name, pattern_config in self.additional_patterns.items():
+            selectors = pattern_config.get("selectors", {})
+            if key in selectors:
+                selector = selectors[key]
+                selector_type = pattern_config.get("selector_types", {}).get(
+                    key, "single"
+                )
+
+                if selector_type == "multiple":
+                    elements = self.soup.select(selector)
+                    if elements:
+                        return [clean_text(el.text) for el in elements]
+                else:
+                    element = self.soup.select_one(selector)
+                    if element:
+                        return clean_text(element.text)
+
+        return ""
+
+    def process_from_any_pattern(self, key):
+        """
+        すべてのパターンから指定されたキーの値を取得して処理
+
+        Args:
+            key: 処理対象のキー
+
+        Returns:
+            処理後の値
+        """
+        value = self.get_from_any_pattern(key)
+
+        # 値を処理
+        # まず現在のパターンのルールを確認
+        if key in self.processor_rules:
+            return self.process_value(key, value)
+
+        # 追加のパターンのルールを確認
+        for pattern_name, pattern_config in self.additional_patterns.items():
+            processor_rules = pattern_config.get("processor_rules", {})
+            if key in processor_rules:
+                rule = processor_rules[key]
+                if rule == "currency":
+                    return process_currency(value)
+                elif rule == "number":
+                    return extract_number_from_text(value)
+                elif rule == "age":
+                    return process_age(value)
+
+        return value
 
     def parse(self):
         """
@@ -154,77 +232,41 @@ class FavoritePatternParser(BaseParser):
         # 物件ID（URLの末尾から抽出）
         property_id = self.url.split("_")[-1].split("/")[0]
 
-        # 物件名
-        property_name = self.get_text("property_name")
-
-        # 基本情報
-        rent = self.process_value("rent", self.get_text("rent"))
-        management_fee = self.process_value(
-            "management_fee", self.get_text("management_fee")
-        )
-        deposit = self.process_value("deposit", self.get_text("deposit"))
-        key_money = self.process_value("key_money", self.get_text("key_money"))
-
-        # 物件詳細
-        layout = self.get_text("layout")
-        area = self.process_value("area", self.get_text("area"))
-        direction = self.get_text("direction")
-        building_type = self.get_text("building_type")
-        age = self.process_value("age", self.get_text("age"))
-
-        # 住所・アクセス
-        address = self.get_text("address")
-        access_list = self.get_text("access")
-        access = (
-            " / ".join(access_list) if isinstance(access_list, list) else access_list
-        )
-
-        # 入居情報
-        move_in = self.get_text("move_in")
-
-        # 詳細情報（追加項目）
-        layout_detail = self.get_text("layout_detail")
-        structure = self.get_text("structure")
-        floor = self.get_text("floor")
-        conditions = self.get_text("conditions")
-
-        # 周辺情報
-        surrounding_list = self.get_text("surrounding")
-        surrounding = (
-            " / ".join(surrounding_list)
-            if isinstance(surrounding_list, list)
-            else surrounding_list
-        )
-
-        # 情報更新日
-        update_date = self.get_text("update_date")
-
-        # 現在時刻（スクレイピング実行時刻）
-        update_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        # ページから物件名を取得（h1タグからの直接取得も試みる）
+        property_name = self.get_from_any_pattern("property_name")
+        if not property_name:
+            h1_tag = self.soup.select_one("h1.section_h1-header-title")
+            if h1_tag:
+                property_name = clean_text(h1_tag.text)
 
         # 結果を辞書として返す
         result = {
             "property_id": property_id,
             "name": property_name,
-            "address": address,
-            "access": access,
-            "rent": rent,
-            "management_fee": management_fee,
-            "deposit": deposit,
-            "key_money": key_money,
-            "layout": layout,
-            "area": area,
-            "direction": direction,
-            "building_type": building_type,
-            "age": age,
-            "layout_detail": layout_detail,
-            "structure": structure,
-            "floor": floor,
-            "move_in": move_in,
-            "conditions": conditions,
-            "surrounding": surrounding,
-            "update_date": update_date,
-            "update_time": update_time,
+            "address": self.get_from_any_pattern("address"),
+            "access": self.get_from_any_pattern("access"),
+            "rent": self.process_from_any_pattern("rent"),
+            "management_fee": self.process_from_any_pattern("management_fee"),
+            "deposit": self.process_from_any_pattern("deposit"),
+            "key_money": self.process_from_any_pattern("key_money"),
+            "layout": self.get_from_any_pattern("layout"),
+            "area": self.process_from_any_pattern("area"),
+            "direction": self.get_from_any_pattern("direction"),
+            "building_type": self.get_from_any_pattern("building_type"),
+            "age": self.process_from_any_pattern("age"),
+            "layout_detail": self.get_from_any_pattern("layout_detail"),
+            "structure": self.get_from_any_pattern("structure"),
+            "floor": self.get_from_any_pattern("floor"),
+            "move_in": self.get_from_any_pattern("move_in"),
+            "conditions": self.get_from_any_pattern("conditions"),
+            "surrounding": self.get_from_any_pattern("surrounding"),
+            "update_date": self.get_from_any_pattern("update_date"),
+            "update_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         }
+
+        # リスト型の値を文字列に変換
+        for key, value in result.items():
+            if isinstance(value, list):
+                result[key] = " / ".join(value)
 
         return result

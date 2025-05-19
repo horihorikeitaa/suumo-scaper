@@ -301,6 +301,286 @@ def update_property_data(
     return result
 
 
+def batch_update_properties(
+    property_sheet, properties_data: List[Dict[str, Any]], result: Dict[str, Any]
+) -> Dict[str, Any]:
+    """
+    複数の物件情報を一括でスプレッドシートに更新する関数
+
+    Args:
+        property_sheet: 物件情報シート
+        properties_data: 更新する物件情報のリスト [{"row": 行番号, "data": 物件データ}, ...]
+        result: 結果を格納する辞書
+
+    Returns:
+        更新された結果辞書
+    """
+    logging.info(f"一括更新処理開始: {len(properties_data)}件")
+
+    # 最大列番号を特定
+    max_col = max(col for col in config.COLUMNS.values())
+
+    # 一括更新用のバッチデータを準備
+    all_batch_data = []
+
+    # 各物件のデータをバッチに追加
+    for prop in properties_data:
+        row = prop["row"]
+        property_info = prop["data"]
+
+        # エラーチェック
+        if "error" in property_info:
+            result["status"] = "partial_error"
+            result["error_count"] += 1
+            result["errors"].append(
+                {
+                    "url": property_info.get("url", "Unknown URL"),
+                    "error_message": property_info.get("error", "未知のエラー"),
+                }
+            )
+            logging.error(f"物件情報取得エラー: {property_info.get('error', '')}")
+            continue
+
+        # 行データの作成
+        row_data = [""] * max_col  # 必要な列数分の空のリストを作成
+
+        # データをセット
+        for key, col in config.COLUMNS.items():
+            if key in property_info:
+                row_data[col - 1] = property_info.get(key, "")
+
+        # 列範囲の計算
+        max_column_index = max(config.COLUMNS.values())
+        last_column = chr(64 + min(max_column_index, 26))
+        if max_column_index > 26:
+            last_column = "A" + chr(64 + (max_column_index - 26))
+
+        # バッチデータに追加
+        all_batch_data.append(
+            {
+                "range": f"A{row}:{last_column}{row}",
+                "values": [row_data[:max_column_index]],
+            }
+        )
+
+    # Google Sheets APIの制限（1リクエストあたり100セル）に対応するため、バッチを分割
+    max_batches_per_request = 10  # 1リクエストあたりの最大バッチ数
+    success_count = 0
+
+    for i in range(0, len(all_batch_data), max_batches_per_request):
+        batch_chunk = all_batch_data[i : i + max_batches_per_request]
+
+        # バッチ更新を実行する関数
+        def execute_batch_update():
+            try:
+                response = property_sheet.batch_update(batch_chunk)
+                return response
+            except Exception as e:
+                logging.error(f"バッチ更新エラー: {str(e)}")
+                raise
+
+        # エクスポネンシャルバックオフで実行
+        def exponential_backoff_retry(
+            func,
+            max_retries=config.API_RETRY_COUNT,
+            initial_wait=config.API_RATE_LIMIT_WAIT,
+        ):
+            retry_count = 0
+            wait_time = initial_wait
+
+            while retry_count <= max_retries:
+                try:
+                    if retry_count > 0:
+                        logging.info(
+                            f"再試行 {retry_count}/{max_retries}... 待機時間: {wait_time}秒"
+                        )
+                        time.sleep(wait_time)
+                    return func()
+                except Exception as e:
+                    is_rate_limit = "Quota exceeded" in str(e) or "429" in str(e)
+                    retry_count += 1
+
+                    if retry_count > max_retries:
+                        logging.error(f"最大再試行回数に達しました: {e}")
+                        return None
+
+                    # レート制限エラーの場合は待機時間を長くする
+                    if is_rate_limit:
+                        wait_time = min(wait_time * 2, 300)  # 最大5分まで
+                    else:
+                        wait_time = min(
+                            wait_time * 1.5, 120
+                        )  # その他のエラーは1.5倍、最大2分
+
+            return None
+
+        # APIリクエスト前に短時間の待機を設定して連続リクエストを避ける
+        time.sleep(config.API_WRITE_INTERVAL)
+
+        # バッチ更新を実行
+        result_batch = exponential_backoff_retry(execute_batch_update)
+
+        if result_batch is not None:
+            success_count += len(batch_chunk)
+            logging.info(
+                f"バッチ更新成功: {i+1}～{min(i+max_batches_per_request, len(all_batch_data))}件目"
+            )
+        else:
+            result["status"] = "partial_error"
+            result["error_count"] += len(batch_chunk)
+            result["errors"].append(
+                {
+                    "url": "batch_update",
+                    "error_message": f"バッチ{i+1}～{min(i+max_batches_per_request, len(all_batch_data))}の更新に失敗",
+                }
+            )
+            logging.error(
+                f"バッチ更新失敗: {i+1}～{min(i+max_batches_per_request, len(all_batch_data))}件目"
+            )
+
+    result["success_count"] += success_count
+    logging.info(
+        f"一括更新処理完了: 成功={success_count}件, 失敗={len(all_batch_data)-success_count}件"
+    )
+
+    return result
+
+
+def batch_add_new_properties(
+    property_sheet,
+    new_properties: List[Dict[str, Any]],
+    existing_urls: List[str],
+    result: Dict[str, Any],
+) -> Dict[str, Any]:
+    """
+    新規物件を一括でスプレッドシートに追加する関数
+
+    Args:
+        property_sheet: 物件情報シート
+        new_properties: 追加する物件情報のリスト
+        existing_urls: 既存のURL一覧
+        result: 結果を格納する辞書
+
+    Returns:
+        更新された結果辞書、および新しい行番号とURLのマッピング
+    """
+    if not new_properties:
+        return result, {}
+
+    logging.info(f"新規物件一括追加処理開始: {len(new_properties)}件")
+
+    # 新規物件のURLだけをまず追加（行確保のため）
+    url_to_row = {}  # URLと行番号のマッピング
+    next_row = len(existing_urls) + 2  # 既存のURL数 + ヘッダー行 + 1
+
+    # URLのみを一括更新するためのデータを準備
+    url_batch_data = []
+
+    for i, property_info in enumerate(new_properties):
+        url = property_info.get("url", "")
+        if not url or url in existing_urls:
+            # URLが空または既存の場合はスキップ
+            continue
+
+        row = next_row + i
+        url_to_row[url] = row
+
+        # URLのみをバッチに追加
+        url_column = config.COLUMNS["url"]
+        if url_column <= 26:
+            col_letter = chr(64 + url_column)
+        else:
+            col_letter = "A" + chr(64 + (url_column - 26))
+
+        url_batch_data.append({"range": f"{col_letter}{row}", "values": [[url]]})
+
+    if not url_batch_data:
+        return result, {}
+
+    # URLの一括更新を実行
+    def update_urls_batch():
+        try:
+            response = property_sheet.batch_update(url_batch_data)
+            return response
+        except Exception as e:
+            logging.error(f"URL一括追加エラー: {str(e)}")
+            raise
+
+    # エクスポネンシャルバックオフで実行
+    def exponential_backoff_retry(
+        func,
+        max_retries=config.API_RETRY_COUNT,
+        initial_wait=config.API_RATE_LIMIT_WAIT,
+    ):
+        retry_count = 0
+        wait_time = initial_wait
+
+        while retry_count <= max_retries:
+            try:
+                if retry_count > 0:
+                    logging.info(
+                        f"再試行 {retry_count}/{max_retries}... 待機時間: {wait_time}秒"
+                    )
+                    time.sleep(wait_time)
+                return func()
+            except Exception as e:
+                is_rate_limit = "Quota exceeded" in str(e) or "429" in str(e)
+                retry_count += 1
+
+                if retry_count > max_retries:
+                    logging.error(f"最大再試行回数に達しました: {e}")
+                    return None
+
+                # レート制限エラーの場合は待機時間を長くする
+                if is_rate_limit:
+                    wait_time = min(wait_time * 2, 300)  # 最大5分まで
+                else:
+                    wait_time = min(
+                        wait_time * 1.5, 120
+                    )  # その他のエラーは1.5倍、最大2分
+
+        return None
+
+    # APIリクエスト前に短時間の待機を設定
+    time.sleep(config.API_WRITE_INTERVAL)
+
+    # URL一括追加を実行
+    url_result = exponential_backoff_retry(update_urls_batch)
+
+    if url_result is None:
+        result["status"] = "partial_error"
+        result["error_count"] += len(url_batch_data)
+        result["errors"].append(
+            {"url": "batch_add_urls", "error_message": "URLの一括追加に失敗"}
+        )
+        logging.error("URLの一括追加に失敗")
+        return result, {}
+
+    logging.info(f"URL一括追加成功: {len(url_batch_data)}件")
+
+    # 登録されたURLに対応する物件データを準備
+    properties_data = []
+
+    for property_info in new_properties:
+        url = property_info.get("url", "")
+        if url in url_to_row:
+            # 通し番号を設定
+            row = url_to_row[url]
+            if "number" not in property_info:
+                # 自動的に通し番号を設定（行番号-1）
+                property_info["number"] = str(row - 1)
+
+            # 物件データを準備
+            properties_data.append({"row": row, "data": property_info})
+
+    # 物件データの一括更新
+    if properties_data:
+        result = batch_update_properties(property_sheet, properties_data, result)
+        result["processed_urls"] += len(properties_data)
+
+    return result, url_to_row
+
+
 def process_url(
     url: str, property_sheet, existing_urls: List[str], result: Dict[str, Any]
 ) -> Dict[str, Any]:

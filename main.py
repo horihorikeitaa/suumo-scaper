@@ -6,12 +6,18 @@ import random
 import time
 import os
 from typing import Dict, List, Any
+from datetime import datetime
 
 # 内部モジュールのインポート
 import config
 from utils.logger import setup_logger
 from sheets.connection import setup_sheet_connection, get_urls_from_main_sheet
-from sheets.update import process_url, update_property_data
+from sheets.update import (
+    process_url,
+    update_property_data,
+    batch_update_properties,
+    batch_add_new_properties,
+)
 from scraper.core import scrape_suumo_property_info
 from scraper.debug import debug_scrape_url
 
@@ -100,78 +106,78 @@ def update_suumo_sheet(update_mode="new_only", new_url=None):
                 # mainシートからURLリストを取得
                 urls_to_process = get_urls_from_main_sheet(spreadsheet)
 
-            # バッチ処理：各URLを処理
-            for url in urls_to_process:
+            # 重複するURLをフィルタリング
+            urls_to_process = [
+                url for url in urls_to_process if url and url not in existing_urls
+            ]
+
+            if not urls_to_process:
+                logger.info("処理対象のURLがありません")
+                return result
+
+            # 一括処理: すべてのURLからデータを取得
+            new_properties = []
+
+            for i, url in enumerate(urls_to_process):
                 try:
-                    result = process_url(url, property_sheet, existing_urls, result)
-                    # 処理後に既存URLリストに追加して重複チェック用データを更新
-                    if url and url not in existing_urls:
-                        existing_urls.append(url)
-                except Exception as url_error:
-                    # URLごとの処理エラーを記録して続行
-                    if "Quota exceeded" in str(url_error) or "429" in str(url_error):
-                        logger.warning(
-                            f"APIレート制限に達しました。一時停止します: {url_error}"
-                        )
-                        time.sleep(
-                            config.API_RATE_LIMIT_WAIT
-                        )  # APIレート制限に達した場合は待機
-
-                        # 再試行処理
-                        retry_success = False
-                        for retry in range(config.API_RETRY_COUNT):
-                            try:
-                                # 再試行
-                                result = process_url(
-                                    url, property_sheet, existing_urls, result
-                                )
-                                if url and url not in existing_urls:
-                                    existing_urls.append(url)
-                                retry_success = True
-                                logger.debug(
-                                    f"URL処理再試行成功（{retry+1}回目）: {url}"
-                                )
-                                break
-                            except Exception as retry_error:
-                                logger.warning(
-                                    f"URL処理再試行失敗（{retry+1}/{config.API_RETRY_COUNT}）: {retry_error}"
-                                )
-                                if "Quota exceeded" in str(retry_error) or "429" in str(
-                                    retry_error
-                                ):
-                                    time.sleep(
-                                        config.API_RATE_LIMIT_WAIT * (retry + 1)
-                                    )  # 待機時間を増やす
-                                else:
-                                    time.sleep(config.API_WRITE_INTERVAL)
-
-                        if retry_success:
-                            continue
-                        else:
-                            logger.error(f"再試行後もエラー発生: {url}")
-
-                    result["status"] = "partial_error"
-                    result["error_count"] += 1
-                    result["errors"].append(
-                        {"url": url, "error_message": str(url_error)}
+                    logger.debug(
+                        f"URL({i+1}/{len(urls_to_process)})スクレイピング開始: {url}"
                     )
-                    logger.error(f"URL処理中にエラー発生: {url_error}")
+
+                    # ランダムな待機時間を設定（サーバー負荷軽減のため）
+                    if i > 0:  # 最初のURLは待機なし
+                        time.sleep(
+                            random.uniform(
+                                config.SCRAPING_WAIT_MIN, config.SCRAPING_WAIT_MAX
+                            )
+                        )
+
+                    # 物件情報を取得
+                    property_info = scrape_suumo_property_info(url)
+                    property_info["url"] = url  # URLも含めておく
+
+                    # 成功したらリストに追加
+                    new_properties.append(property_info)
+                    logger.debug(f"スクレイピング成功: {url}")
+
+                except Exception as e:
+                    # エラーがあった場合でもリストに追加（エラー情報付き）
+                    new_properties.append({"url": url, "error": str(e)})
+                    logger.error(f"スクレイピングエラー: {url} - {e}")
+
+            # 取得したデータを一括でスプレッドシートに追加
+            if new_properties:
+                result, url_to_row = batch_add_new_properties(
+                    property_sheet, new_properties, existing_urls, result
+                )
+                logger.info(f"一括追加完了: {len(new_properties)}件")
+            else:
+                logger.info("追加する物件情報がありません")
 
         # 全体更新モード
         elif update_mode == config.MODE_FULL_UPDATE:
             logger.debug(f"全体更新モード開始: 対象URL数={len(existing_urls)}")
 
-            # 物件情報シートの全URLを処理
-            for i, url in enumerate(existing_urls, start=2):  # 2行目から開始
-                try:
-                    logger.debug(f"URL({i-1}/{len(existing_urls)})処理開始: {url}")
+            if not existing_urls:
+                logger.info("処理対象のURLがありません")
+                return result
 
-                    # ランダムな待機時間を設定
-                    time.sleep(
-                        random.uniform(
-                            config.SCRAPING_WAIT_MIN, config.SCRAPING_WAIT_MAX
-                        )
+            # 一括処理: すべてのURLからデータを取得
+            all_properties = []
+
+            for i, url in enumerate(existing_urls):
+                try:
+                    logger.debug(
+                        f"URL({i+1}/{len(existing_urls)})スクレイピング開始: {url}"
                     )
+
+                    # ランダムな待機時間を設定（サーバー負荷軽減のため）
+                    if i > 0:  # 最初のURLは待機なし
+                        time.sleep(
+                            random.uniform(
+                                config.SCRAPING_WAIT_MIN, config.SCRAPING_WAIT_MAX
+                            )
+                        )
 
                     # 物件情報を取得
                     property_info = scrape_suumo_property_info(url)
@@ -179,78 +185,35 @@ def update_suumo_sheet(update_mode="new_only", new_url=None):
 
                     # 既存の通し番号を保持
                     try:
+                        row = i + 2  # 2行目から開始
                         existing_number = property_sheet.cell(
-                            i, config.COLUMNS["number"]
+                            row, config.COLUMNS["number"]
                         ).value
                         if existing_number:
                             property_info["number"] = existing_number
                     except Exception as e:
                         logger.warning(f"既存の通し番号取得エラー: {e}")
 
-                    # 物件情報を更新
-                    result = update_property_data(
-                        property_sheet, i, property_info, result
+                    # 成功したらリストに追加
+                    all_properties.append(
+                        {"row": i + 2, "data": property_info}  # 2行目から開始
                     )
-                    result["processed_urls"] += 1
+                    logger.debug(f"スクレイピング成功: {url}")
 
                 except Exception as e:
-                    if "Quota exceeded" in str(e) or "429" in str(e):
-                        logger.warning(
-                            f"APIレート制限に達しました。一時停止します: {e}"
-                        )
-                        time.sleep(
-                            config.API_RATE_LIMIT_WAIT * 2
-                        )  # APIレート制限に達した場合は長めに待機
+                    # エラーがあった場合でもリストに追加（エラー情報付き）
+                    all_properties.append(
+                        {"row": i + 2, "data": {"url": url, "error": str(e)}}
+                    )
+                    logger.error(f"スクレイピングエラー: {url} - {e}")
 
-                        # 再試行処理
-                        retry_success = False
-                        for retry in range(config.API_RETRY_COUNT):
-                            try:
-                                # 再試行（スクレイピングはスキップ、直前の物件情報を使用）
-                                if (
-                                    "property_info" in locals()
-                                ):  # 物件情報が取得できていれば再利用
-                                    result = update_property_data(
-                                        property_sheet, i, property_info, result
-                                    )
-                                    result["processed_urls"] += 1
-                                    retry_success = True
-                                    logger.debug(
-                                        f"URL更新再試行成功（{retry+1}回目）: {url}"
-                                    )
-                                    break
-                                else:
-                                    # 物件情報が取得できていない場合は再取得
-                                    property_info = scrape_suumo_property_info(url)
-                                    property_info["url"] = url
-                                    result = update_property_data(
-                                        property_sheet, i, property_info, result
-                                    )
-                                    result["processed_urls"] += 1
-                                    retry_success = True
-                                    break
-                            except Exception as retry_error:
-                                logger.warning(
-                                    f"URL更新再試行失敗（{retry+1}/{config.API_RETRY_COUNT}）: {retry_error}"
-                                )
-                                if "Quota exceeded" in str(retry_error) or "429" in str(
-                                    retry_error
-                                ):
-                                    time.sleep(
-                                        config.API_RATE_LIMIT_WAIT * (retry + 2)
-                                    )  # 待機時間を増やす
-                                else:
-                                    time.sleep(config.API_WRITE_INTERVAL)
-
-                        if retry_success:
-                            continue
-                        else:
-                            logger.error(f"再試行後もエラー発生: {url}")
-
-                    result["status"] = "partial_error"
-                    result["error_count"] += 1
-                    result["errors"].append({"url": url, "error_message": str(e)})
-                    logger.error(f"URL更新中にエラー発生: {e}")
+            # 取得したデータを一括でスプレッドシートに更新
+            if all_properties:
+                result = batch_update_properties(property_sheet, all_properties, result)
+                result["processed_urls"] = len(all_properties)
+                logger.info(f"一括更新完了: {len(all_properties)}件")
+            else:
+                logger.info("更新する物件情報がありません")
 
         # 処理結果の返却
         logger.debug(f"処理完了: {result}")

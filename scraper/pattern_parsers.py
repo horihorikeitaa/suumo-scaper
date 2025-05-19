@@ -51,18 +51,20 @@ class BaseParser:
         self.selector_types = self.config.get("selector_types", {})
         self.processor_rules = self.config.get("processor_rules", {})
 
-    def get_element(self, key):
+    def get_element(self, key, silent=False):
         """
         指定されたキーのセレクタで要素を取得
 
         Args:
             key: セレクタのキー
+            silent: 警告メッセージを出力しない場合はTrue
 
         Returns:
             要素が見つかった場合はBeautifulSoupの要素、見つからなかった場合はNone
         """
         if key not in self.selectors:
-            logging.warning(f"セレクタが定義されていません: {key}")
+            if not silent:
+                logging.warning(f"セレクタが定義されていません: {key}")
             return None
 
         selector = self.selectors[key]
@@ -73,17 +75,18 @@ class BaseParser:
         else:
             return self.soup.select_one(selector)
 
-    def get_text(self, key):
+    def get_text(self, key, silent=False):
         """
         指定されたキーのセレクタで要素のテキストを取得
 
         Args:
             key: セレクタのキー
+            silent: 警告メッセージを出力しない場合はTrue
 
         Returns:
             要素のテキスト、要素が見つからなかった場合は空文字列
         """
-        element = self.get_element(key)
+        element = self.get_element(key, silent)
 
         if element is None:
             return ""
@@ -166,8 +169,8 @@ class FavoritePatternParser(BaseParser):
         Returns:
             要素のテキスト、見つからなかった場合は空文字列
         """
-        # まず現在のパターンから検索
-        value = self.get_text(key)
+        # まず現在のパターンから検索（警告を出さない）
+        value = self.get_text(key, silent=True)
         if value:
             return value
 

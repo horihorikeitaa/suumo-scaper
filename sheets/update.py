@@ -122,24 +122,33 @@ def update_property_data(
             time.sleep(config.API_WRITE_INTERVAL)
 
             # データの長さを確認してセル範囲を調整
-            actual_data_length = len([x for x in row_data if x != ""])
+            # データの長さを確認してセル範囲を調整（最大列数をCOLUMNSの最大値に合わせる）
+            max_column_index = max(config.COLUMNS.values())
             last_column = chr(
-                64 + min(actual_data_length, 20)
-            )  # 最大Tカラム（20列目）まで
+                64 + min(max_column_index, 26)
+            )  # A-Zまでの範囲（最大26列）
+
+            # 26列以上の場合の対応
+            if max_column_index > 26:
+                last_column = "A" + chr(64 + (max_column_index - 26))  # AA, AB, ...
 
             # 一度に行全体を更新する関数
             def update_whole_row():
                 try:
+                    # 更新するデータの長さを確認してログ出力
+                    logging.debug(
+                        f"更新するデータ長: {len(row_data)}, 最大列インデックス: {max_column_index}"
+                    )
                     response = property_sheet.update(
                         f"A{row}:{last_column}{row}",
-                        [row_data[:actual_data_length]],
+                        [row_data[:max_column_index]],
                         value_input_option="RAW",
                     )
                     return response
                 except Exception as e:
                     logging.error(f"行更新エラーの詳細: {str(e)}")
                     # 更新しようとしている行データをログに出力（デバッグ用）
-                    logging.debug(f"行データ: {row_data[:actual_data_length]}")
+                    logging.debug(f"行データ: {row_data[:max_column_index]}")
                     logging.debug(f"セル範囲: A{row}:{last_column}{row}")
                     raise
 
@@ -163,7 +172,12 @@ def update_property_data(
             # すべての値をバッチデータに追加
             for key, col in config.COLUMNS.items():
                 if key in property_info:
-                    col_letter = chr(64 + col)  # 1→A, 2→B, ...
+                    # 列番号から列文字に変換（26列以上対応）
+                    if col <= 26:
+                        col_letter = chr(64 + col)  # 1→A, 2→B, ...
+                    else:
+                        col_letter = "A" + chr(64 + (col - 26))  # 27→AA, 28→AB, ...
+
                     cell_ref = f"{col_letter}{row}"
                     value = property_info[key]
                     ranges_to_update.append((cell_ref, value))
@@ -198,105 +212,93 @@ def update_property_data(
             result["success_count"] += 1
             return result
 
-        except Exception as batch_error:
-            logging.warning(
-                f"バッチ更新に失敗、必須項目のみに切り替えます: {batch_error}"
+        except Exception as e:
+            logging.error(f"データ更新エラー（行: {row}）: {e}")
+            result["error_count"] += 1
+            result["status"] = "partial_error"
+            result["errors"].append(
+                {
+                    "url": property_info.get("url", "Unknown URL"),
+                    "error_message": str(e),
+                }
             )
 
-            # バッチ更新方式3: 重要な項目だけをまとめて更新
+            # エラー発生時、最低限の重要情報だけでも更新を試みる
             try:
-                # 重要項目のデータだけを取得
-                essential_batch_data = []
-
-                # 重要項目だけを追加
+                essential_updates = []
                 for key in config.ESSENTIAL_COLUMNS:
-                    if key in property_info:
-                        col = config.COLUMNS.get(key)
-                        if col:
-                            col_letter = chr(64 + col)  # 1→A, 2→B, ...
-                            cell_ref = f"{col_letter}{row}"
-                            value = property_info[key]
-                            essential_batch_data.append(
-                                {"range": cell_ref, "values": [[value]]}
-                            )
+                    if key in property_info and key in config.COLUMNS:
+                        col = config.COLUMNS[key]
+                        if col <= 26:
+                            col_letter = chr(64 + col)
+                        else:
+                            col_letter = "A" + chr(64 + (col - 26))
 
-                if essential_batch_data:
-                    # 重要項目のバッチ更新を実行
+                        cell_ref = f"{col_letter}{row}"
+                        value = property_info[key]
+                        essential_updates.append((cell_ref, value))
+
+                # 重要情報だけをバッチ更新
+                if essential_updates:
+                    batch_essential = []
+                    for cell_ref, value in essential_updates:
+                        batch_essential.append({"range": cell_ref, "values": [[value]]})
+
                     def update_essential_batch():
-                        return property_sheet.batch_update(essential_batch_data)
+                        try:
+                            response = property_sheet.batch_update(batch_essential)
+                            return response
+                        except Exception as e:
+                            logging.error(f"重要情報更新エラー: {e}")
+                            raise
 
                     time.sleep(config.API_WRITE_INTERVAL)
-                    result_essential = exponential_backoff_retry(update_essential_batch)
-
-                    if result_essential is not None:
-                        logging.debug(f"必須項目のバッチ更新成功（行: {row}）")
-                        result["success_count"] += 1
-                        return result
+                    exponential_backoff_retry(update_essential_batch)
+                    logging.info(f"重要情報の更新に成功（行: {row}）")
+                    result["status"] = "partial_success"
             except Exception as essential_error:
-                logging.warning(
-                    f"必須項目のバッチ更新に失敗、個別更新に切り替えます: {essential_error}"
-                )
+                logging.error(f"重要情報更新も失敗（行: {row}）: {essential_error}")
+                # セルごとの更新を試みる
+                try:
+                    for key in ["property_id", "name"]:  # 最小限の識別情報
+                        if key in property_info and key in config.COLUMNS:
+                            col = config.COLUMNS[key]
+                            if col <= 26:
+                                col_letter = chr(64 + col)
+                            else:
+                                col_letter = "A" + chr(64 + (col - 26))
 
-            # バッチ更新方式4: 個別更新（最終手段）- 最も重要な項目だけを順に更新
-            update_success = False
-            essential_fields_updated = 0
+                            cell_ref = f"{col_letter}{row}"
+                            value = property_info[key]
 
-            # 最も重要な項目だけを選択して更新
-            super_essential_keys = ["url", "property_id", "rent", "layout"]
+                            def update_single_cell():
+                                try:
+                                    response = property_sheet.update(
+                                        cell_ref, [[value]], value_input_option="RAW"
+                                    )
+                                    return response
+                                except Exception as e:
+                                    logging.error(f"セル更新エラー ({cell_ref}): {e}")
+                                    raise
 
-            for key in super_essential_keys:
-                if key in property_info:
-                    col = config.COLUMNS.get(key)
-                    if col:
+                            time.sleep(config.API_WRITE_INTERVAL)
+                            exponential_backoff_retry(update_single_cell)
+                    logging.info(f"最小限の識別情報更新に成功（行: {row}）")
+                except Exception as cell_error:
+                    logging.error(f"すべての更新方法が失敗（行: {row}）: {cell_error}")
 
-                        def update_single_cell():
-                            property_sheet.update_cell(
-                                row, col, property_info.get(key, "")
-                            )
-
-                        time.sleep(config.API_WRITE_INTERVAL)
-                        result_cell = exponential_backoff_retry(
-                            update_single_cell,
-                            max_retries=3,  # 個別更新の場合は再試行回数を減らす
-                            initial_wait=config.API_WRITE_INTERVAL * 2,
-                        )
-
-                        if result_cell is not None:
-                            essential_fields_updated += 1
-                            update_success = True
-                            logging.debug(f"重要項目更新成功: {key}")
-
-            if essential_fields_updated == 0:
-                result["status"] = "error"
-                result["error_count"] += 1
-                result["errors"].append(
-                    {
-                        "url": property_info.get("url", "Unknown URL"),
-                        "error_message": "すべての重要項目の更新に失敗しました",
-                    }
-                )
-                logging.error("すべての重要項目の更新に失敗しました")
-            else:
-                result["status"] = (
-                    "partial_success"
-                    if essential_fields_updated < len(super_essential_keys)
-                    else "success"
-                )
-                result["success_count"] += 1
-                result["partial_update"] = True
-                logging.info(
-                    f"部分的な更新成功: {essential_fields_updated}/{len(super_essential_keys)} 重要項目"
-                )
-
-        return result
-    except Exception as e:
-        result["status"] = "partial_error"
+    except Exception as final_error:
+        logging.error(f"予期せぬエラー（行: {row}）: {final_error}")
         result["error_count"] += 1
+        result["status"] = "error"
         result["errors"].append(
-            {"url": property_info.get("url", "Unknown URL"), "error_message": str(e)}
+            {
+                "url": property_info.get("url", "Unknown URL"),
+                "error_message": str(final_error),
+            }
         )
-        logging.error(f"データ更新中にエラー発生: {e}")
-        return result
+
+    return result
 
 
 def process_url(

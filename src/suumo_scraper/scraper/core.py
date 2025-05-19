@@ -7,8 +7,8 @@ import os
 from datetime import datetime
 from urllib3.util import Retry
 from requests.adapters import HTTPAdapter
-import config
-from scraper.parser_factory import create_parser
+from src.suumo_scraper import config
+from src.suumo_scraper.scraper.parser_factory import create_parser
 
 
 def create_session():

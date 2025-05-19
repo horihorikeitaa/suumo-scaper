@@ -1,7 +1,7 @@
 import gspread
 from google.oauth2.service_account import Credentials
 import logging
-import config
+from src.suumo_scraper import config
 
 
 def setup_sheet_connection():

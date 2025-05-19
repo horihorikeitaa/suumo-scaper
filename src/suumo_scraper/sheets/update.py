@@ -1,6 +1,6 @@
 import time
 import logging
-import config
+from src.suumo_scraper import config
 from typing import Dict, List, Any
 
 

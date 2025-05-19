@@ -3,7 +3,7 @@ import os
 import logging
 from bs4 import BeautifulSoup
 from datetime import datetime
-from utils.text_processor import (
+from src.suumo_scraper.utils.text_processor import (
     extract_number_from_text,
     process_currency,
     process_age,

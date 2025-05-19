@@ -6,3 +6,24 @@ suumo-scraper-460206-6734b711c3fa.json
 token.json
 venv/
 .DS_Store
+
+# Pipenv
+Pipfile.lock
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+
+# Testing
+.coverage
+htmlcov/
+.pytest_cache/
+
+# IDE
+.vscode/
+.idea/
+
+# データディレクトリ
+/data/
+/debug_data/

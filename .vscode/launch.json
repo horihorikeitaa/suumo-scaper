@@ -8,42 +8,43 @@
       "program": "${file}",
       "console": "integratedTerminal",
       "args": [],
-      "justMyCode": true,
-      "exceptionHandling": {
-        "ignore": ["SystemExit"]
-      }
+      "justMyCode": true
     },
     {
       "name": "SUUMO: 全件更新モード",
       "type": "debugpy",
       "request": "launch",
-      "program": "${workspaceFolder}/main.py",
+      "program": "${workspaceFolder}/test_app.py",
+      "console": "integratedTerminal",
+      "args": [],
+      "justMyCode": false,
+      "env": { "PYTHONPATH": "${workspaceFolder}" }
+    },
+    {
+      "name": "SUUMO: モジュール実行 (全件更新)",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/src/suumo_scraper/main.py",
       "console": "integratedTerminal",
       "args": ["--mode", "full_update"],
       "justMyCode": false,
-      "env": { "PYTHONPATH": "${workspaceFolder}" },
-      "exceptionHandling": {
-        "ignore": ["SystemExit"]
-      }
+      "env": { "PYTHONPATH": "${workspaceFolder}" }
     },
     {
-      "name": "SUUMO: 新規URL追加モード（シートB9:B18から取得）",
+      "name": "SUUMO: モジュール実行 (新規追加)",
       "type": "debugpy",
       "request": "launch",
-      "program": "${workspaceFolder}/main.py",
+      "program": "${workspaceFolder}/src/suumo_scraper/main.py",
       "console": "integratedTerminal",
       "args": ["--mode", "new_only"],
       "justMyCode": false,
-      "env": { "PYTHONPATH": "${workspaceFolder}" },
-      "exceptionHandling": {
-        "ignore": ["SystemExit"]
-      }
+      "env": { "PYTHONPATH": "${workspaceFolder}" }
     },
     {
-      "name": "SUUMO: 指定URLを処理",
+      "name": "SUUMO: URL指定実行",
       "type": "debugpy",
       "request": "launch",
-      "program": "${workspaceFolder}/main.py",
+      "program": "${workspaceFolder}/src/suumo_scraper/main.py",
       "console": "integratedTerminal",
       "args": [
         "--mode",
@@ -52,29 +53,27 @@
         "https://suumo.jp/chintai/jnc_000068928596/?bc=100437528760&smk=r01"
       ],
       "justMyCode": false,
-      "env": { "PYTHONPATH": "${workspaceFolder}" },
-      "exceptionHandling": {
-        "ignore": ["SystemExit"]
-      }
+      "env": { "PYTHONPATH": "${workspaceFolder}" }
     },
     {
       "name": "SUUMO: スクレイピングデバッグ",
       "type": "debugpy",
       "request": "launch",
-      "program": "${workspaceFolder}/main.py",
+      "module": "src.suumo_scraper.main",
       "console": "integratedTerminal",
-      "args": [
-        "--mode",
-        "debug",
-        "--url",
-        "https://suumo.jp/chintai/bc_100437808558/",
-        "--save-html"
-      ],
+      "args": ["--debug", "--url", "https://suumo.jp/chintai/bc_100437808558/"],
       "justMyCode": false,
-      "env": { "PYTHONPATH": "${workspaceFolder}" },
-      "exceptionHandling": {
-        "ignore": ["SystemExit"]
-      }
+      "env": { "PYTHONPATH": "${workspaceFolder}" }
+    },
+    {
+      "name": "Pipenv: モジュール実行",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "src.suumo_scraper.main",
+      "console": "integratedTerminal",
+      "args": [],
+      "justMyCode": false,
+      "env": { "PYTHONPATH": "${workspaceFolder}" }
     }
   ]
 }

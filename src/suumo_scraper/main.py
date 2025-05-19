@@ -9,17 +9,20 @@ from typing import Dict, List, Any
 from datetime import datetime
 
 # 内部モジュールのインポート
-import config
-from utils.logger import setup_logger
-from sheets.connection import setup_sheet_connection, get_urls_from_main_sheet
-from sheets.update import (
+from src.suumo_scraper import config
+from src.suumo_scraper.utils.logger import setup_logger
+from src.suumo_scraper.sheets.connection import (
+    setup_sheet_connection,
+    get_urls_from_main_sheet,
+)
+from src.suumo_scraper.sheets.update import (
     process_url,
     update_property_data,
     batch_update_properties,
     batch_add_new_properties,
 )
-from scraper.core import scrape_suumo_property_info
-from scraper.debug import debug_scrape_url
+from src.suumo_scraper.scraper.core import scrape_suumo_property_info
+from src.suumo_scraper.scraper.debug import debug_scrape_url
 
 # ロガーの設定
 logger = setup_logger()

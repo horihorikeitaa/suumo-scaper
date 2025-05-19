@@ -2,7 +2,11 @@ import logging
 from bs4 import BeautifulSoup
 import json
 import os
-from scraper.pattern_parsers import BaseParser, FavoritePatternParser, load_patterns
+from src.suumo_scraper.scraper.pattern_parsers import (
+    BaseParser,
+    FavoritePatternParser,
+    load_patterns,
+)
 
 # パターン定義の読み込み
 patterns = load_patterns()

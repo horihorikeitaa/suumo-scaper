@@ -13,7 +13,6 @@ from src.suumo_scraper import config
 from src.suumo_scraper.utils.logger import setup_logger
 from src.suumo_scraper.sheets.connection import (
     setup_sheet_connection,
-    get_urls_from_main_sheet,
 )
 from src.suumo_scraper.sheets.update import (
     process_url,
@@ -102,12 +101,9 @@ def update_suumo_sheet(update_mode="new_only", new_url=None):
         if update_mode == config.MODE_NEW_ONLY:
             urls_to_process = []
 
-            if new_url:  # コマンドラインから指定されたURL
+            if new_url:  # コマンドラインまたはHTMLフォームから指定されたURL
                 urls_to_process.append(new_url)
-                logger.debug(f"コマンドラインから指定されたURL: {new_url}")
-            else:
-                # mainシートからURLリストを取得
-                urls_to_process = get_urls_from_main_sheet(spreadsheet)
+                logger.debug(f"指定されたURL: {new_url}")
 
             # 重複するURLをフィルタリング
             urls_to_process = [

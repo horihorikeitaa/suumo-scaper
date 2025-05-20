@@ -56,21 +56,3 @@ def setup_sheet_connection():
     except Exception as e:
         logging.error(f"スプレッドシート接続エラー: {e}")
         raise RuntimeError(f"スプレッドシート接続に失敗しました: {e}") from e
-
-
-def get_urls_from_main_sheet(spreadsheet):
-    """
-    メインシートからURLリストを取得する関数
-
-    Returns:
-        URLのリスト
-    """
-    try:
-        main_sheet = spreadsheet.worksheet(config.MAIN_SHEET_NAME)
-        cell_range = main_sheet.range(config.NEW_URL_RANGE)
-        urls = [cell.value for cell in cell_range if cell.value]
-        logging.debug(f"{config.MAIN_SHEET_NAME}シートから取得したURL: {len(urls)}件")
-        return urls
-    except Exception as e:
-        logging.error(f"{config.MAIN_SHEET_NAME}シートからのURL取得エラー: {e}")
-        return []

@@ -45,6 +45,8 @@ suumo-scraper/
 ├── setup.py
 ├── Dockerfile
 ├── README.md
+├── test_suumo_scraper.py  # 動作確認用スクリプト（実スクレイピング）
+├── test_with_mock_data.py  # 動作確認用スクリプト（モックデータ）
 └── .gitignore
 ```
 
@@ -83,6 +85,48 @@ python -m src.suumo_scraper.main --mode full_update
 python -m src.suumo_scraper.main --url [URL]
 python -m src.suumo_scraper.main --debug
 ```
+
+## ローカルでの動作確認
+
+ローカル環境で新規登録と更新処理の動作確認を行うためのスクリプトが用意されています。
+
+### 実際のスクレイピングを使った動作確認
+
+```bash
+# サンプルURLを使用
+python test_suumo_scraper.py --sample
+
+# 特定のURLを指定
+python test_suumo_scraper.py --url "https://suumo.jp/chintai/bc_100437808558/"
+
+# URLリストファイルを指定
+python test_suumo_scraper.py --urls-file "urls.txt"
+```
+
+### モックデータを使った動作確認
+
+Google Sheets への接続やスクレイピングをモック化し、ローカルでの動作確認を行います。
+
+```bash
+# 新規物件追加と全物件更新の両方をテスト
+python test_with_mock_data.py --mode both
+
+# 新規物件追加のみテスト
+python test_with_mock_data.py --mode new
+
+# 全物件更新のみテスト
+python test_with_mock_data.py --mode full
+
+# 特定のURLを指定して新規追加テスト
+python test_with_mock_data.py --mode new --url "https://suumo.jp/chintai/bc_100435000001/"
+```
+
+### VSCode での実行
+
+`.vscode/launch.json`に実行構成が用意されているため、VSCode の実行とデバッグ機能から簡単に起動できます。
+
+- `SUUMO: 動作確認 (実URLスクレイピング)` - 実際の URL からスクレイピングを行います
+- `SUUMO: 動作確認 (モックデータ)` - モックデータを使用して処理をテストします
 
 ## Google Cloud Run でのデプロイと実行
 

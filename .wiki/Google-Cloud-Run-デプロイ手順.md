@@ -8,6 +8,7 @@
 - [認証情報の管理](#認証情報の管理)
 - [アプリケーションの設定](#アプリケーションの設定)
 - [コンテナのビルドとデプロイ](#コンテナのビルドとデプロイ)
+- [再デプロイ手順](#再デプロイ手順)
 - [Google Apps Script との連携](#google-apps-scriptとの連携)
 - [トラブルシューティング](#トラブルシューティング)
 
@@ -310,6 +311,70 @@ gcloud run services list
 # デプロイされたサービスの詳細を確認
 gcloud run services describe suumo-scraper
 ```
+
+## 再デプロイ手順
+
+コードの変更後に再デプロイする場合は、以下の手順に従います。
+
+### 1. Google Cloud へのログイン
+
+まだログインしていない場合は、以下のコマンドでログインします。
+
+```bash
+gcloud auth login
+```
+
+### 2. プロジェクト ID の設定
+
+作業対象のプロジェクトを指定します。
+
+```bash
+# プロジェクトIDを変数に設定
+PROJECT_ID="suumo-scraper-460206"
+
+# gcloudコマンドの操作対象プロジェクトを設定
+gcloud config set project $PROJECT_ID
+```
+
+### 3. コンテナの再ビルド
+
+ローカルのコードの変更をコンテナ化します。このコマンドを実行すると以下の処理が行われます：
+
+- カレントディレクトリ（プロジェクトルート）の内容が Google Cloud Build にアップロードされます
+- Dockerfile に基づいてコンテナイメージがクラウド上でビルドされます
+- ビルドされたイメージが Google Container Registry に保存されます
+
+```bash
+# コンテナを再ビルド
+gcloud builds submit --tag gcr.io/$PROJECT_ID/suumo-scraper
+```
+
+### 4. Cloud Run への再デプロイ
+
+ビルドしたコンテナイメージを Cloud Run にデプロイします。
+初回デプロイ時に設定した内容（リージョン、サービスアカウント、シークレット等）は保持されます。
+
+```bash
+# Cloud Runに再デプロイ
+gcloud run deploy suumo-scraper \
+  --image gcr.io/$PROJECT_ID/suumo-scraper \
+  --platform managed \
+  --region asia-northeast1 \
+  --service-account="suumo-scraper-sa@$PROJECT_ID.iam.gserviceaccount.com" \
+  --allow-unauthenticated \
+  --set-secrets="/secrets/credentials.json=suumo-scraper-credentials:latest"
+```
+
+### 5. デプロイの確認
+
+デプロイが成功したことを確認します。
+
+```bash
+# デプロイされたサービスの詳細を確認
+gcloud run services describe suumo-scraper
+```
+
+サービス URL を確認して、アプリケーションが正常に動作しているかテストすることをお勧めします。
 
 ## Google Apps Script との連携
 

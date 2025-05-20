@@ -5,8 +5,6 @@ SUUMOスクレイピングの設定ファイル
 # スプレッドシートの設定
 SPREADSHEET_ID = "1iAdgFDYd7Tl441za4Afm3ybSCZk0vsIiia59Z77SeOE"
 PROPERTY_SHEET_NAME = "物件情報"
-MAIN_SHEET_NAME = "main"
-NEW_URL_RANGE = "B9:B18"  # 新規URL入力範囲
 
 # 認証関連の設定
 CREDS_FILE_PATH = "suumo-scraper-460206-6734b711c3fa.json"

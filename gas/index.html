@@ -1,0 +1,1227 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top" />
+    <meta charset="UTF-8" />
+    <!-- GAS環境でのモバイル表示を強制するビューポート設定 -->
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=0"
+    />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <title>SUUMO物件情報取得ツール</title>
+
+    <!-- Material Design Lite -->
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/icon?family=Material+Icons"
+    />
+    <link
+      rel="stylesheet"
+      href="https://code.getmdl.io/1.3.0/material.indigo-pink.min.css"
+    />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&display=swap"
+    />
+    <script defer src="https://code.getmdl.io/1.3.0/material.min.js"></script>
+
+    <script>
+      // モバイルデバイス検出の改善版
+      (function () {
+        // 即時実行関数
+        function adjustForMobile() {
+          // ユーザーエージェント判定
+          var ua = navigator.userAgent;
+          var isIOS = /iPhone|iPad|iPod/.test(ua);
+          var isAndroid = /Android/.test(ua);
+          var isMobile = isIOS || isAndroid || window.innerWidth <= 768;
+          var isTablet =
+            (isIOS || isAndroid) &&
+            window.innerWidth > 480 &&
+            window.innerWidth <= 1024;
+
+          // デバイスクラスの設定
+          if (isMobile) {
+            document.body.classList.add("mobile-device");
+            if (isTablet) {
+              document.body.classList.add("tablet-device");
+            } else {
+              document.body.classList.add("phone-device");
+            }
+
+            // iOS特有の対応
+            if (isIOS) {
+              document.body.classList.add("ios-device");
+
+              // iOSでのフォントサイズ強制
+              var style = document.createElement("style");
+              style.textContent = `
+                body, input, button, select, textarea {
+                  font-size: 16px !important;
+                }
+                .card-title {
+                  font-size: 1.2rem !important;
+                }
+                .header h2 {
+                  font-size: 1.5rem !important;
+                }
+              `;
+              document.head.appendChild(style);
+            }
+
+            // Android特有の対応
+            if (isAndroid) {
+              document.body.classList.add("android-device");
+            }
+          }
+
+          console.log(
+            "Device detection: Mobile=" +
+              isMobile +
+              ", Tablet=" +
+              isTablet +
+              ", iOS=" +
+              isIOS +
+              ", Android=" +
+              isAndroid
+          );
+        }
+
+        // 実行タイミング
+        if (document.readyState === "loading") {
+          document.addEventListener("DOMContentLoaded", adjustForMobile);
+        } else {
+          adjustForMobile();
+        }
+
+        // リサイズ時にも再実行
+        window.addEventListener("resize", adjustForMobile);
+      })();
+    </script>
+
+    <style>
+      /* デバイス間の文字サイズ調整 - 強化版 */
+      html {
+        -webkit-text-size-adjust: 100%;
+        -moz-text-size-adjust: 100%;
+        -ms-text-size-adjust: 100%;
+        text-size-adjust: 100%;
+        font-size: 100%; /* ベースフォントサイズ */
+      }
+
+      body {
+        font-family: "Roboto", "Noto Sans JP", sans-serif;
+        margin: 0;
+        padding: 0;
+        background-color: #f5f5f5;
+        font-size: 16px; /* デフォルトフォントサイズ */
+      }
+
+      /* モバイルデバイス向けの強制スタイル */
+      body.mobile-device {
+        font-size: 16px !important;
+      }
+
+      /* スマートフォン向けの強制スタイル */
+      body.phone-device {
+        font-size: 16px !important;
+      }
+
+      /* タブレット向けの強制スタイル */
+      body.tablet-device {
+        font-size: 17px !important;
+      }
+
+      /* 強制的なフォントサイズ設定 */
+      .mobile-device .card-title {
+        font-size: 1.2rem !important;
+      }
+
+      .mobile-device .card-description {
+        font-size: 15px !important;
+        line-height: 1.5 !important;
+      }
+
+      .mobile-device .header h2 {
+        font-size: 1.5rem !important;
+      }
+
+      .mobile-device .url-instruction {
+        font-size: 14px !important;
+      }
+
+      .mobile-device .mdl-button {
+        font-size: 15px !important;
+      }
+
+      .mobile-device input,
+      .mobile-device button,
+      .mobile-device select,
+      .mobile-device textarea {
+        font-size: 16px !important;
+      }
+
+      /* タブレット向けの強制スタイル */
+      .tablet-device .card-title {
+        font-size: 1.3rem !important;
+      }
+
+      .tablet-device .card-description {
+        font-size: 16px !important;
+      }
+
+      .tablet-device .header h2 {
+        font-size: 1.8rem !important;
+      }
+
+      /* デバイス間の文字サイズ調整 */
+      html {
+        -webkit-text-size-adjust: 100%;
+        -moz-text-size-adjust: 100%;
+        -ms-text-size-adjust: 100%;
+        text-size-adjust: 100%;
+      }
+
+      body {
+        font-family: "Roboto", "Noto Sans JP", sans-serif;
+        margin: 0;
+        padding: 0;
+        background-color: #f5f5f5;
+
+        /* レスポンシブなデフォルトフォントサイズ */
+        font-size: 16px;
+      }
+
+      /* モバイルデバイス向けのフォントサイズ調整 */
+      @media only screen and (max-width: 480px) {
+        body {
+          font-size: 16px; /* iOSでのデフォルトフォントサイズ */
+        }
+
+        input,
+        button,
+        select,
+        textarea {
+          font-size: 16px; /* iOS Safariでのズーム防止 */
+          -webkit-text-size-adjust: 100%;
+        }
+      }
+
+      /* タブレットデバイス向けの調整 */
+      @media only screen and (min-width: 481px) and (max-width: 1024px) {
+        body {
+          font-size: 17px;
+        }
+      }
+
+      .container {
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 16px;
+        width: 100%;
+        box-sizing: border-box;
+      }
+
+      .header {
+        text-align: center;
+        margin-bottom: 24px;
+      }
+
+      .header h2 {
+        font-size: 1.8rem;
+        margin: 16px 0;
+      }
+
+      .card {
+        background-color: white;
+        border-radius: 8px;
+        padding: 16px;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        margin-bottom: 24px;
+        width: 100%;
+        box-sizing: border-box;
+      }
+
+      .button-container {
+        display: flex;
+        justify-content: center;
+        margin-top: 24px;
+        flex-wrap: wrap;
+      }
+
+      .mdl-button {
+        margin: 8px;
+        min-width: 180px;
+      }
+
+      @media (max-width: 600px) {
+        .mdl-button {
+          min-width: 140px;
+          padding: 0 16px;
+          font-size: 13px;
+        }
+
+        .container {
+          padding: 12px;
+        }
+
+        .card {
+          padding: 12px;
+        }
+
+        .header h2 {
+          font-size: 1.5rem;
+        }
+      }
+
+      #result-area {
+        margin-top: 32px;
+        transition: all 0.3s ease;
+      }
+
+      .result-card {
+        display: none;
+        background-color: #e8f5e9;
+        border-radius: 8px;
+        padding: 16px;
+        margin-top: 16px;
+        border-left: 4px solid #4caf50;
+      }
+
+      .error-card {
+        background-color: #ffebee;
+        border-left: 4px solid #f44336;
+      }
+
+      .spinner {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(255, 255, 255, 0.8);
+        z-index: 999;
+        justify-content: center;
+        align-items: center;
+      }
+
+      .mdl-spinner {
+        width: 80px;
+        height: 80px;
+      }
+
+      .status-info {
+        font-size: 14px;
+        text-align: center;
+        color: #757575;
+        margin-top: 12px;
+      }
+
+      .card-title {
+        color: #3f51b5;
+        margin-top: 0;
+        font-weight: 500;
+      }
+
+      .card-description {
+        color: #757575;
+        font-size: 14px;
+        margin-bottom: 24px;
+      }
+
+      .mdl-button--raised.mdl-button--colored.new-only {
+        background-color: #4caf50;
+      }
+
+      .mdl-button--raised.mdl-button--colored.full-update {
+        background-color: #ff9800;
+      }
+
+      .result-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 8px;
+      }
+
+      .result-title {
+        margin: 0;
+        font-weight: 500;
+      }
+
+      .result-timestamp {
+        font-size: 12px;
+        color: #757575;
+      }
+
+      .last-run-info {
+        font-size: 12px;
+        color: #757575;
+        text-align: center;
+        margin-top: 8px;
+      }
+
+      .url-inputs {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        margin-bottom: 16px;
+      }
+
+      .url-input-row {
+        display: flex;
+        align-items: center;
+        position: relative;
+        margin-bottom: 16px; /* モバイル向けにマージン追加 */
+      }
+
+      .url-field {
+        flex-grow: 1;
+        margin-right: 8px;
+      }
+
+      .url-error {
+        color: #f44336;
+        font-size: 12px;
+        position: absolute;
+        bottom: -18px;
+        left: 0;
+        display: none;
+      }
+
+      .url-field.is-invalid .mdl-textfield__input {
+        border-color: #f44336;
+      }
+
+      .url-field.is-invalid .mdl-textfield__label {
+        color: #f44336;
+      }
+
+      .mdl-button--icon.remove-url {
+        color: #757575;
+      }
+
+      #add-url-btn {
+        color: #3f51b5;
+        margin-top: 8px;
+        align-self: flex-start;
+      }
+
+      .tabs {
+        display: flex;
+        margin-bottom: 16px;
+        border-bottom: 1px solid #e0e0e0;
+      }
+
+      .tab {
+        padding: 12px 16px;
+        cursor: pointer;
+        color: #757575;
+        font-weight: 500;
+        position: relative;
+        transition: color 0.3s;
+      }
+
+      .tab.active {
+        color: #3f51b5;
+      }
+
+      .tab.active::after {
+        content: "";
+        position: absolute;
+        bottom: -1px;
+        left: 0;
+        width: 100%;
+        height: 2px;
+        background-color: #3f51b5;
+      }
+
+      .tab-content {
+        display: none;
+      }
+
+      .tab-content.active {
+        display: block;
+      }
+
+      .url-instruction {
+        font-size: 13px;
+        color: #757575;
+        margin-bottom: 16px;
+      }
+
+      .url-example {
+        font-family: monospace;
+        background-color: #f5f5f5;
+        padding: 4px 8px;
+        border-radius: 4px;
+        margin: 4px 0;
+        display: inline-block;
+      }
+
+      @media (max-width: 480px) {
+        .tab {
+          padding: 10px 12px;
+          font-size: 14px;
+        }
+      }
+    </style>
+
+    <!-- モバイルとタブレット向けのボタンとレイアウト最適化 -->
+    <style>
+      /* スマートフォンとタブレット共通のボタンスタイル */
+      @media only screen and (max-width: 1024px) {
+        .mdl-button {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          text-align: center;
+
+          /* サイズと余白の調整 */
+          min-height: 48px;
+          min-width: 180px;
+          padding: 0 16px;
+          margin: 8px auto;
+
+          /* フォントスタイル */
+          font-size: 15px;
+          font-weight: 500;
+          line-height: 1.5;
+
+          /* レスポンシブ対応 */
+          box-sizing: border-box;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+
+        /* アイコン付きボタンの調整 */
+        .mdl-button .material-icons {
+          margin-right: 8px;
+          font-size: 20px;
+        }
+
+        /* ボタンコンテナの調整 */
+        .button-container {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          width: 100%;
+          padding: 0 16px;
+          box-sizing: border-box;
+        }
+
+        /* 特定のボタンスタイル */
+        #register-btn,
+        #full-update-btn,
+        #add-url-btn {
+          width: 100%;
+          max-width: 300px;
+        }
+
+        /* タブ関連のボタンスタイル */
+        .tab {
+          flex-grow: 1;
+          text-align: center;
+          padding: 12px;
+          font-size: 15px;
+        }
+      }
+
+      /* タブレット向けの詳細調整 */
+      @media only screen and (min-width: 768px) and (max-width: 1024px) {
+        .mdl-button {
+          min-height: 54px;
+          min-width: 220px;
+          font-size: 16px;
+          margin: 10px auto;
+        }
+
+        .button-container {
+          padding: 0 24px;
+        }
+
+        .tab {
+          font-size: 16px;
+          padding: 14px;
+        }
+      }
+
+      /* iPhone SE and smaller phones */
+      @media only screen and (max-width: 375px) {
+        .mdl-button {
+          min-height: 44px;
+          min-width: 160px;
+          font-size: 14px;
+          margin: 6px auto;
+          padding: 0 12px;
+        }
+
+        .button-container {
+          padding: 0 12px;
+        }
+
+        .tab {
+          font-size: 14px;
+          padding: 10px;
+        }
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="spinner">
+      <div class="mdl-spinner mdl-js-spinner is-active"></div>
+      <p class="status-info" id="status-message">処理中...</p>
+    </div>
+
+    <div class="container">
+      <div class="header">
+        <h2>SUUMO物件情報取得ツール</h2>
+      </div>
+
+      <div class="card">
+        <div class="tabs">
+          <div class="tab active" data-tab="new-properties">新規物件登録</div>
+          <div class="tab" data-tab="update-properties">全物件更新</div>
+        </div>
+
+        <div class="tab-content active" id="new-properties">
+          <h3 class="card-title">新規物件の登録</h3>
+          <p class="card-description">
+            SUUMOの物件URLを入力して、新規登録します（最大10件）
+          </p>
+
+          <div class="url-instruction">
+            <p>
+              <strong>入力可能なURL形式：</strong><br />
+              <span class="url-example"
+                >https://suumo.jp/chintai/bc_xxxxxxxxxx/</span
+              >
+              形式のURLを入力してください。
+            </p>
+            <p>
+              <strong>例：</strong><br />
+              OK:
+              <span class="url-example"
+                >https://suumo.jp/chintai/bc_100439633414/</span
+              ><br />
+              NG:
+              <span class="url-example"
+                >https://suumo.jp/chintai/jnc_000098833106/?bc=100439633414</span
+              >
+            </p>
+          </div>
+
+          <form id="url-form">
+            <div class="url-inputs" id="url-inputs">
+              <div class="url-input-row">
+                <div
+                  class="mdl-textfield mdl-js-textfield mdl-textfield--floating-label url-field"
+                >
+                  <input class="mdl-textfield__input" type="text" id="url-1" />
+                  <label class="mdl-textfield__label" for="url-1"
+                    >SUUMO物件URL</label
+                  >
+                  <span class="url-error"
+                    >お気に入り登録された物件のURLを入力してください</span
+                  >
+                </div>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              id="add-url-btn"
+              class="mdl-button mdl-js-button mdl-button--icon mdl-js-ripple-effect"
+            >
+              <i class="material-icons">add_circle</i>
+            </button>
+            <span style="margin-left: 8px; font-size: 14px; color: #757575"
+              >URLを追加</span
+            >
+
+            <div class="button-container">
+              <button
+                type="button"
+                id="register-btn"
+                class="mdl-button mdl-js-button mdl-button--raised mdl-button--colored mdl-js-ripple-effect new-only"
+              >
+                <i class="material-icons">add_circle</i>
+                登録実行
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <div class="tab-content" id="update-properties">
+          <h3 class="card-title">全物件情報の更新</h3>
+          <p class="card-description">
+            登録済みの全物件情報を最新の情報に更新します。
+          </p>
+
+          <div class="button-container">
+            <button
+              id="full-update-btn"
+              class="mdl-button mdl-js-button mdl-button--raised mdl-button--colored mdl-js-ripple-effect full-update"
+            >
+              <i class="material-icons">update</i>
+              全物件情報更新
+            </button>
+          </div>
+        </div>
+
+        <p class="last-run-info" id="last-run-info" style="display: none">
+          最終更新: <span id="last-run-time">未実行</span>
+        </p>
+      </div>
+
+      <div id="result-area">
+        <div class="result-card" id="result-card">
+          <div class="result-header">
+            <h4 class="result-title" id="result-title">処理結果</h4>
+            <span class="result-timestamp" id="result-timestamp"></span>
+          </div>
+          <div id="result-content"></div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // URLの検証関数
+      function validateUrl(url) {
+        if (!url) return { valid: false, message: "URLを入力してください" };
+
+        // SUUMOのURL形式チェック
+        if (!url.includes("suumo.jp/chintai/")) {
+          return {
+            valid: false,
+            message: "SUUMOの賃貸物件URLを入力してください",
+          };
+        }
+
+        // bc_で始まるURLのみ許可、jnc_は不可
+        if (url.includes("/jnc_")) {
+          return {
+            valid: false,
+            message: "お気に入り登録された物件のURLを入力してください",
+          };
+        }
+
+        if (!url.includes("/bc_")) {
+          return {
+            valid: false,
+            message: "正しいSUUMO物件URLを入力してください",
+          };
+        }
+
+        return { valid: true };
+      }
+
+      // URL入力欄を追加する関数
+      function addUrlInput() {
+        const urlInputs = document.getElementById("url-inputs");
+        const inputCount = urlInputs.children.length;
+
+        // 最大10個まで
+        if (inputCount >= 10) {
+          alert("URLは最大10件までです");
+          return;
+        }
+
+        const newRow = document.createElement("div");
+        newRow.className = "url-input-row";
+        newRow.innerHTML = `
+        <div class="mdl-textfield mdl-js-textfield mdl-textfield--floating-label url-field">
+          <input class="mdl-textfield__input" type="text" id="url-${
+            inputCount + 1
+          }">
+          <label class="mdl-textfield__label" for="url-${
+            inputCount + 1
+          }">SUUMO物件URL</label>
+          <span class="url-error">お気に入り登録された物件のURLを入力してください</span>
+        </div>
+        <button type="button" class="mdl-button mdl-js-button mdl-button--icon remove-url">
+          <i class="material-icons">remove_circle</i>
+        </button>
+      `;
+
+        urlInputs.appendChild(newRow);
+
+        // Material Designを適用
+        if (typeof componentHandler !== "undefined") {
+          componentHandler.upgradeElement(
+            newRow.querySelector(".mdl-textfield")
+          );
+          componentHandler.upgradeElement(newRow.querySelector(".mdl-button"));
+        }
+
+        // 削除ボタンの処理
+        const removeBtn = newRow.querySelector(".remove-url");
+        removeBtn.addEventListener("click", function () {
+          urlInputs.removeChild(newRow);
+        });
+
+        // 新しい入力欄のリアルタイムバリデーションを設定
+        setupUrlInputValidation(newRow.querySelector("input"));
+      }
+
+      // URL入力フィールドにリアルタイムバリデーションを設定する関数
+      function setupUrlInputValidation(inputElement) {
+        inputElement.addEventListener("input", function () {
+          validateUrlField(this);
+        });
+
+        inputElement.addEventListener("blur", function () {
+          validateUrlField(this);
+        });
+      }
+
+      // 個別のURL入力フィールドを検証する関数
+      function validateUrlField(inputElement) {
+        const url = inputElement.value.trim();
+        const urlField = inputElement.closest(".url-field");
+        const errorMsg = urlField.querySelector(".url-error");
+
+        if (url) {
+          const validation = validateUrl(url);
+          if (!validation.valid) {
+            urlField.classList.add("is-invalid");
+            errorMsg.textContent = validation.message;
+            errorMsg.style.display = "block";
+          } else {
+            urlField.classList.remove("is-invalid");
+            errorMsg.style.display = "none";
+          }
+        } else {
+          urlField.classList.remove("is-invalid");
+          errorMsg.style.display = "none";
+        }
+      }
+
+      // 入力されたURLを検証して取得する関数
+      function getValidUrls() {
+        const urlInputs = document.getElementById("url-inputs");
+        const inputRows = urlInputs.querySelectorAll(".url-input-row");
+        const validUrls = [];
+        let hasError = false;
+
+        inputRows.forEach((row) => {
+          const input = row.querySelector("input");
+          const urlField = row.querySelector(".url-field");
+          const errorMsg = row.querySelector(".url-error");
+
+          // 入力値の検証
+          const url = input.value.trim();
+          const validation = validateUrl(url);
+
+          // バリデーション結果の表示
+          if (url && !validation.valid) {
+            urlField.classList.add("is-invalid");
+            errorMsg.textContent = validation.message;
+            errorMsg.style.display = "block";
+            hasError = true;
+          } else {
+            urlField.classList.remove("is-invalid");
+            errorMsg.style.display = "none";
+
+            if (url) {
+              validUrls.push(url);
+            }
+          }
+        });
+
+        return { urls: validUrls, hasError };
+      }
+
+      // 新規物件登録処理
+      function registerNewProperties() {
+        const { urls, hasError } = getValidUrls();
+
+        if (hasError) {
+          return; // エラーがあれば処理中断
+        }
+
+        if (urls.length === 0) {
+          alert("少なくとも1つのURLを入力してください");
+          return;
+        }
+
+        // 確認ダイアログを表示
+        const confirmMessage = `${urls.length}件の物件を新規登録します。よろしいですか？`;
+        if (!confirm(confirmMessage)) {
+          return;
+        }
+
+        // スピナーを表示
+        document.querySelector(".spinner").style.display = "flex";
+        document.getElementById("status-message").textContent =
+          "新規物件情報を取得中...";
+
+        // GAS関数を呼び出し
+        google.script.run
+          .withSuccessHandler(function (result) {
+            // 成功時の処理
+            displayResult(result, false);
+            // スピナーを非表示
+            document.querySelector(".spinner").style.display = "none";
+            // 最終実行時間を更新
+            updateLastRunTime();
+
+            // 成功したら入力欄をクリア
+            if (result.status !== "error") {
+              clearUrlInputs();
+            }
+          })
+          .withFailureHandler(function (error) {
+            // 失敗時の処理
+            displayResult(
+              {
+                status: "error",
+                error_message: error.message || "処理中にエラーが発生しました",
+              },
+              true
+            );
+            // スピナーを非表示
+            document.querySelector(".spinner").style.display = "none";
+          })
+          .registerNewUrls(urls);
+      }
+
+      // 入力欄をクリアする関数
+      function clearUrlInputs() {
+        const urlInputs = document.getElementById("url-inputs");
+        // 最初の入力欄だけ残してクリア
+        while (urlInputs.children.length > 1) {
+          urlInputs.removeChild(urlInputs.lastChild);
+        }
+        const firstInput = urlInputs.querySelector("input");
+        firstInput.value = "";
+        // Material Design状態をリセット
+        firstInput.parentNode.classList.remove("is-dirty");
+        firstInput.parentNode.classList.remove("is-focused");
+      }
+
+      // 全物件更新処理
+      function updateAllProperties() {
+        // 確認ダイアログを表示
+        if (!confirm("全物件情報の更新処理を実行します。よろしいですか？")) {
+          return;
+        }
+
+        // スピナーを表示
+        document.querySelector(".spinner").style.display = "flex";
+        document.getElementById("status-message").textContent =
+          "全物件情報を更新中...";
+
+        // GAS関数を呼び出し
+        google.script.run
+          .withSuccessHandler(function (result) {
+            // 成功時の処理
+            displayResult(result, false);
+            // スピナーを非表示
+            document.querySelector(".spinner").style.display = "none";
+            // 最終実行時間を更新
+            updateLastRunTime();
+          })
+          .withFailureHandler(function (error) {
+            // 失敗時の処理
+            displayResult(
+              {
+                status: "error",
+                error_message: error.message || "処理中にエラーが発生しました",
+              },
+              true
+            );
+            // スピナーを非表示
+            document.querySelector(".spinner").style.display = "none";
+          })
+          .updateAllProperties();
+      }
+
+      // 結果表示用の関数
+      function displayResult(result, isError) {
+        const resultCard = document.getElementById("result-card");
+        const resultTitle = document.getElementById("result-title");
+        const resultContent = document.getElementById("result-content");
+        const resultTimestamp = document.getElementById("result-timestamp");
+
+        // 現在時刻
+        const now = new Date();
+        resultTimestamp.textContent = now.toLocaleString("ja-JP");
+
+        // エラークラスをリセット
+        resultCard.classList.remove("error-card");
+
+        if (isError) {
+          resultCard.classList.add("error-card");
+          resultTitle.textContent = "エラー";
+          resultContent.innerHTML = `<p>${result.error_message}</p>`;
+        } else {
+          if (result.status === "error") {
+            resultCard.classList.add("error-card");
+            resultTitle.textContent = "エラー";
+            resultContent.innerHTML = `<p>${
+              result.error_message || "不明なエラーが発生しました"
+            }</p>`;
+          } else {
+            resultTitle.textContent = "処理成功";
+
+            // 結果の内容を整形
+            let html = "";
+            if (result.new_properties) {
+              html += `<p>新規追加物件数: ${result.new_properties}件</p>`;
+            }
+            if (result.updated_properties) {
+              html += `<p>更新物件数: ${result.updated_properties}件</p>`;
+            }
+            if (result.processed_urls) {
+              html += `<p>処理したURL数: ${result.processed_urls}件</p>`;
+            }
+            if (result.duplicate_urls) {
+              html += `<p>重複URL数（スキップ）: ${result.duplicate_urls.length}件</p>`;
+              if (result.duplicate_urls.length > 0) {
+                html += `<details>
+                <summary style="cursor: pointer; color: #757575;">重複URLの詳細（クリックして表示）</summary>
+                <ul style="font-size: 12px; margin-top: 8px;">
+                  ${result.duplicate_urls
+                    .map((url) => `<li>${url}</li>`)
+                    .join("")}
+                </ul>
+              </details>`;
+              }
+            }
+            if (result.invalid_urls) {
+              html += `<p>無効URL数（スキップ）: ${result.invalid_urls.length}件</p>`;
+              if (result.invalid_urls.length > 0) {
+                html += `<details>
+                <summary style="cursor: pointer; color: #757575;">無効URLの詳細（クリックして表示）</summary>
+                <ul style="font-size: 12px; margin-top: 8px;">
+                  ${result.invalid_urls
+                    .map((url) => `<li>${url}</li>`)
+                    .join("")}
+                </ul>
+              </details>`;
+              }
+            }
+            if (result.message) {
+              html += `<p>${result.message}</p>`;
+            }
+
+            resultContent.innerHTML = html;
+          }
+        }
+
+        // 結果カードを表示
+        resultCard.style.display = "block";
+
+        // スムーズにスクロール
+        resultCard.scrollIntoView({ behavior: "smooth" });
+      }
+
+      // 最終実行時間を更新する関数 (成功時のみ呼び出される)
+      function updateLastRunTime() {
+        const now = new Date();
+        const lastRunInfo = document.getElementById("last-run-info");
+        document.getElementById("last-run-time").textContent =
+          now.toLocaleString("ja-JP");
+
+        // 最終実行情報を表示する
+        lastRunInfo.style.display = "block";
+
+        // LocalStorageに保存 (ブラウザをリロードしても情報が残る)
+        try {
+          localStorage.setItem("lastRunTime", now.toLocaleString("ja-JP"));
+        } catch (e) {
+          console.error("LocalStorage へのアクセスエラー:", e);
+        }
+      }
+
+      // 初期化時に保存された最終実行時間を取得
+      function loadLastRunTime() {
+        try {
+          const lastTime = localStorage.getItem("lastRunTime");
+          if (lastTime) {
+            document.getElementById("last-run-time").textContent = lastTime;
+            document.getElementById("last-run-info").style.display = "block";
+          }
+        } catch (e) {
+          console.error("LocalStorage からの読み込みエラー:", e);
+        }
+      }
+
+      // タブ切り替え関数
+      function switchTab(tabId) {
+        // タブの切り替え
+        document.querySelectorAll(".tab").forEach((tab) => {
+          tab.classList.remove("active");
+        });
+        document
+          .querySelector(`.tab[data-tab="${tabId}"]`)
+          .classList.add("active");
+
+        // タブコンテンツの切り替え
+        document.querySelectorAll(".tab-content").forEach((content) => {
+          content.classList.remove("active");
+        });
+        document.getElementById(tabId).classList.add("active");
+      }
+
+      // タップ反応性を改善するための高度なイベントハンドラー
+      function setupEnhancedTouchHandlers() {
+        const buttons = document.querySelectorAll(
+          "#register-btn, #full-update-btn, #add-url-btn, .remove-url"
+        );
+
+        buttons.forEach((button) => {
+          // タッチ開始時の処理
+          button.addEventListener(
+            "touchstart",
+            function (e) {
+              // タッチフィードバックの追加
+              this.classList.add("touch-active");
+
+              // タッチ開始時間の記録
+              this.touchStartTime = Date.now();
+            },
+            { passive: true }
+          );
+
+          // タッチ終了時の処理
+          button.addEventListener(
+            "touchend",
+            function (e) {
+              // タッチフィードバックの削除
+              this.classList.remove("touch-active");
+
+              // タッチ時間の計算
+              const touchDuration = Date.now() - this.touchStartTime;
+
+              // 短いタップ（300ms未満）の場合のみ処理を実行
+              if (touchDuration < 300) {
+                e.preventDefault();
+
+                // ボタンの種類に応じた処理
+                switch (this.id) {
+                  case "register-btn":
+                    registerNewProperties();
+                    break;
+                  case "full-update-btn":
+                    updateAllProperties();
+                    break;
+                  case "add-url-btn":
+                    addUrlInput();
+                    break;
+                  default:
+                    // 削除ボタンの処理
+                    if (this.classList.contains("remove-url")) {
+                      const urlInputRow = this.closest(".url-input-row");
+                      urlInputRow.parentNode.removeChild(urlInputRow);
+                    }
+                }
+              }
+            },
+            { passive: false }
+          );
+
+          // クリックイベントのバックアップ
+          button.addEventListener("click", function (e) {
+            e.preventDefault();
+
+            // タッチイベントが既に処理されていない場合のみ実行
+            if (
+              !this.touchStartTime ||
+              Date.now() - this.touchStartTime >= 300
+            ) {
+              switch (this.id) {
+                case "register-btn":
+                  registerNewProperties();
+                  break;
+                case "full-update-btn":
+                  updateAllProperties();
+                  break;
+                case "add-url-btn":
+                  addUrlInput();
+                  break;
+                default:
+                  if (this.classList.contains("remove-url")) {
+                    const urlInputRow = this.closest(".url-input-row");
+                    urlInputRow.parentNode.removeChild(urlInputRow);
+                  }
+              }
+            }
+          });
+        });
+      }
+
+      // イベントリスナーの設定
+      document.addEventListener("DOMContentLoaded", function () {
+        // 最終実行時間を読み込み
+        loadLastRunTime();
+
+        // Material Design Liteコンポーネントの初期化を確実に行う
+        if (typeof componentHandler !== "undefined") {
+          componentHandler.upgradeAllRegistered();
+        }
+
+        // 全ての入力欄のリアルタイムバリデーションを設定
+        function setupAllUrlInputValidations() {
+          const urlInputs = document.getElementById("url-inputs");
+          const inputs = urlInputs.querySelectorAll("input");
+          inputs.forEach(setupUrlInputValidation);
+        }
+
+        // 初期入力欄のリアルタイムバリデーションを設定
+        setupAllUrlInputValidations();
+
+        // タブのイベントリスナー
+        document.querySelectorAll(".tab").forEach((tab) => {
+          tab.addEventListener("click", function () {
+            const tabId = this.getAttribute("data-tab");
+            switchTab(tabId);
+          });
+        });
+
+        // URL追加ボタン
+        document
+          .getElementById("add-url-btn")
+          .addEventListener("click", function () {
+            addUrlInput();
+            // 新しく追加された入力欄のバリデーションを設定
+            setupAllUrlInputValidations();
+          });
+
+        // 新規登録ボタン
+        document
+          .getElementById("register-btn")
+          .addEventListener("click", registerNewProperties);
+
+        // 全物件更新ボタン
+        document
+          .getElementById("full-update-btn")
+          .addEventListener("click", updateAllProperties);
+
+        // 初期化時に全てのMaterial Designコンポーネントを再初期化
+        function reinitializeMaterialComponents() {
+          if (typeof componentHandler !== "undefined") {
+            const elements = document.querySelectorAll(
+              ".mdl-js-textfield, .mdl-js-button"
+            );
+            elements.forEach((element) => {
+              componentHandler.upgradeElement(element);
+            });
+          }
+        }
+
+        // 初期化と再初期化のタイミングで呼び出し
+        reinitializeMaterialComponents();
+
+        // タップ反応性の高度な改善
+        setupEnhancedTouchHandlers();
+      });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,321 @@
+// Google Apps Scriptコード
+
+// Cloud Runのエンドポイント
+const CLOUD_RUN_URL = "https://suumo-scraper-xxxxx-an.a.run.app"; // Cloud RunのURLを設定
+
+/**
+ * Webアプリケーションを表示するためのDoGet関数
+ */
+function doGet() {
+  return HtmlService.createHtmlOutputFromFile('index')
+    .setTitle('SUUMO物件情報取得ツール')
+    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+}
+
+/**
+ * 全物件更新処理を実行する関数
+ * HTML側から呼び出される
+ */
+function updateAllProperties() {
+  return callSuumoScraper("full_update");
+}
+
+/**
+ * 新規URLを登録する関数
+ * @param {Array} urls - 登録するURL配列
+ * @returns {Object} - 処理結果のオブジェクト
+ */
+function registerNewUrls(urls) {
+  // URLの検証
+  const validationResult = validateUrls(urls);
+  
+  if (validationResult.invalid_urls.length > 0 || validationResult.duplicate_urls.length > 0) {
+    // 無効なURLや重複URLがある場合でも処理可能なURLがあれば処理を続行
+    if (validationResult.valid_urls.length === 0) {
+      return {
+        status: "error",
+        error_message: "有効なURLがありません",
+        invalid_urls: validationResult.invalid_urls,
+        duplicate_urls: validationResult.duplicate_urls
+      };
+    }
+  }
+  
+  // 有効なURLのみでスクレイピング実行
+  if (validationResult.valid_urls.length > 0) {
+    const result = callSuumoScraperWithUrls(validationResult.valid_urls);
+    
+    // 検証結果を追加
+    result.invalid_urls = validationResult.invalid_urls;
+    result.duplicate_urls = validationResult.duplicate_urls;
+    
+    return result;
+  } else {
+    return {
+      status: "error",
+      error_message: "処理するURLがありません",
+      invalid_urls: validationResult.invalid_urls,
+      duplicate_urls: validationResult.duplicate_urls
+    };
+  }
+}
+
+/**
+ * URLを検証する関数
+ * @param {Array} urls - 検証するURL配列
+ * @returns {Object} - 検証結果のオブジェクト
+ */
+function validateUrls(urls) {
+  const result = {
+    valid_urls: [],
+    invalid_urls: [],
+    duplicate_urls: []
+  };
+  
+  // 既存のURLを取得
+  const existingUrls = getExistingUrls();
+  
+  // URLの検証
+  urls.forEach(url => {
+    // 空のURLはスキップ
+    if (!url.trim()) return;
+    
+    // URLの形式をチェック（bc_で始まるSUUMO物件URLかどうか）
+    if (isValidSuumoUrl(url)) {
+      // 重複チェック
+      if (existingUrls.includes(url)) {
+        result.duplicate_urls.push(url);
+      } else {
+        result.valid_urls.push(url);
+      }
+    } else {
+      result.invalid_urls.push(url);
+    }
+  });
+  
+  return result;
+}
+
+/**
+ * SUUMOの有効なURLかどうかをチェックする関数
+ * @param {string} url - チェックするURL
+ * @returns {boolean} - 有効なら true、無効なら false
+ */
+function isValidSuumoUrl(url) {
+  // SUUMOの物件URL形式チェック
+  const isSuumo = url.includes('suumo.jp/chintai/');
+  // jnc_を含むURLは無効
+  const hasJnc = url.includes('/jnc_');
+  // bc_を含むURLは有効
+  const hasBc = url.includes('/bc_');
+  
+  return isSuumo && hasBc && !hasJnc;
+}
+
+/**
+ * 物件情報シートの既存URLを取得する関数
+ * @returns {Array} - 既存のURL配列
+ */
+function getExistingUrls() {
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const propertySheet = ss.getSheetByName('物件情報');
+    
+    if (!propertySheet) {
+      console.warn('物件情報シートが見つかりません');
+      return [];
+    }
+    
+    // データ範囲を取得
+    const dataRange = propertySheet.getDataRange();
+    const values = dataRange.getValues();
+    
+    // ヘッダー行を除く（2列目がURL列と仮定）
+    const urls = values.slice(1).map(row => row[1]).filter(url => url);
+    
+    console.log(`既存URL: ${urls.length}件`);
+    return urls;
+  } catch (e) {
+    console.error(`既存URL取得エラー: ${e.toString()}`);
+    return [];
+  }
+}
+
+/**
+ * 複数URLでCloud Runを呼び出す関数
+ * @param {Array} urls - 登録するURL配列
+ * @returns {Object} - 処理結果のオブジェクト
+ */
+function callSuumoScraperWithUrls(urls) {
+  console.log(`${urls.length}件のURLを処理します`);
+  
+  const requestUrl = CLOUD_RUN_URL;
+
+  // リクエストオプション
+  const options = {
+    method: "post",
+    contentType: "application/json",
+    payload: JSON.stringify({
+      mode: "new_only",
+      urls: urls
+    }),
+    muteHttpExceptions: true,
+  };
+
+  try {
+    // Cloud Runにリクエストを送信
+    const response = UrlFetchApp.fetch(requestUrl, options);
+    const statusCode = response.getResponseCode();
+    
+    // レスポンスのログ
+    console.log(`レスポンスステータスコード: ${statusCode}`);
+    
+    // ステータスコードが200以外の場合はエラーとして処理
+    if (statusCode !== 200) {
+      console.error(`エラーレスポンス: ${response.getContentText()}`);
+      return { 
+        status: "error", 
+        error_message: `APIエラー（ステータスコード: ${statusCode}）` 
+      };
+    }
+    
+    // レスポンスをJSONに変換
+    const result = JSON.parse(response.getContentText());
+    console.log(`処理結果: ${JSON.stringify(result)}`);
+    
+    // 実行ログをスプレッドシートに記録
+    logExecution("new_only", result, urls.length);
+    
+    return result;
+  } catch (e) {
+    // エラーのログ
+    console.error(`エラーが発生しました: ${e.toString()}`);
+    return { 
+      status: "error", 
+      error_message: `リクエスト実行エラー: ${e.toString()}` 
+    };
+  }
+}
+
+/**
+ * 通常モードでCloud Runを呼び出す関数
+ * @param {string} mode - 実行モード（'new_only'または'full_update'）
+ * @returns {Object} - 処理結果のオブジェクト
+ */
+function callSuumoScraper(mode) {
+  // 処理開始のログ
+  console.log(`${mode}モードでSUUMOスクレイパーを実行します`);
+  
+  const url = CLOUD_RUN_URL;
+
+  // リクエストオプション
+  const options = {
+    method: "post",
+    contentType: "application/json",
+    payload: JSON.stringify({
+      mode: mode,
+    }),
+    muteHttpExceptions: true,
+  };
+
+  try {
+    // Cloud Runにリクエストを送信
+    const response = UrlFetchApp.fetch(url, options);
+    const statusCode = response.getResponseCode();
+    
+    // レスポンスのログ
+    console.log(`レスポンスステータスコード: ${statusCode}`);
+    
+    // ステータスコードが200以外の場合はエラーとして処理
+    if (statusCode !== 200) {
+      console.error(`エラーレスポンス: ${response.getContentText()}`);
+      return { 
+        status: "error", 
+        error_message: `APIエラー（ステータスコード: ${statusCode}）` 
+      };
+    }
+    
+    // レスポンスをJSONに変換
+    const result = JSON.parse(response.getContentText());
+    console.log(`処理結果: ${JSON.stringify(result)}`);
+    
+    // 実行ログをスプレッドシートに記録
+    logExecution(mode, result);
+    
+    return result;
+  } catch (e) {
+    // エラーのログ
+    console.error(`エラーが発生しました: ${e.toString()}`);
+    return { 
+      status: "error", 
+      error_message: `リクエスト実行エラー: ${e.toString()}` 
+    };
+  }
+}
+
+/**
+ * 実行ログをスプレッドシートに記録する関数
+ * @param {string} mode - 実行モード
+ * @param {Object} result - 処理結果
+ * @param {number} urlCount - 処理したURL数（複数URL処理時のみ使用）
+ */
+function logExecution(mode, result, urlCount) {
+  try {
+    // アクティブなスプレッドシートを取得
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    
+    // ログシートがなければ作成
+    let logSheet;
+    try {
+      logSheet = ss.getSheetByName('実行ログ');
+      if (!logSheet) {
+        logSheet = ss.insertSheet('実行ログ');
+        // ヘッダーを設定
+        logSheet.getRange(1, 1, 1, 5).setValues([
+          ['実行日時', '実行モード', '処理結果', '処理件数', '詳細情報']
+        ]);
+        // ヘッダーの書式設定
+        logSheet.getRange(1, 1, 1, 5).setFontWeight('bold').setBackground('#e0e0e0');
+      }
+    } catch (e) {
+      console.error(`ログシート作成エラー: ${e.toString()}`);
+      return;
+    }
+    
+    // 現在日時
+    const now = new Date();
+    
+    // 処理結果のステータス
+    const status = result.status === 'error' ? 'エラー' : (result.status === 'partial_error' ? '一部エラー' : '成功');
+    
+    // 処理件数
+    let count = urlCount || 0;
+    if (!count) {
+      if (result.new_properties) {
+        count += result.new_properties;
+      }
+      if (result.updated_properties) {
+        count += result.updated_properties;
+      }
+      if (result.processed_urls) {
+        count = result.processed_urls;
+      }
+    }
+    
+    // 詳細情報
+    let details = '';
+    if (result.status === 'error') {
+      details = result.error_message || '不明なエラー';
+    } else {
+      if (result.new_properties) {
+        details += `新規: ${result.new_properties}件 `;
+      }
+      if (result.updated_properties) {
+        details += `更新: ${result.updated_properties}件 `;
+      }
+      if (result.processed_urls) {
+        details += `処理URL: ${result.processed_urls}件 `;
+      }
+    }
+  }
+}

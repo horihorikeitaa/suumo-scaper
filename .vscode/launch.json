@@ -11,6 +11,26 @@
       "justMyCode": true
     },
     {
+      "name": "SUUMO: 動作確認 (実URLスクレイピング)",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/test_suumo_scraper.py",
+      "console": "integratedTerminal",
+      "args": ["--sample"],
+      "justMyCode": false,
+      "env": { "PYTHONPATH": "${workspaceFolder}" }
+    },
+    {
+      "name": "SUUMO: 動作確認 (モックデータ)",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/tests/test_with_mock_data.py",
+      "console": "integratedTerminal",
+      "args": ["--mode", "both"],
+      "justMyCode": false,
+      "env": { "PYTHONPATH": "${workspaceFolder}" }
+    },
+    {
       "name": "SUUMO: 全件更新モード",
       "type": "debugpy",
       "request": "launch",

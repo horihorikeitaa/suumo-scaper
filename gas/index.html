@@ -340,6 +340,14 @@
         background-color: #ff9800;
       }
 
+      .mdl-button--raised.mdl-button--colored.scoring-all {
+        background-color: #9c27b0;
+      }
+
+      .mdl-button--raised.mdl-button--colored.scoring-selected {
+        background-color: #673ab7;
+      }
+
       .result-header {
         display: flex;
         justify-content: space-between;
@@ -447,6 +455,75 @@
         display: block;
       }
 
+      .scoring-tabs {
+        display: flex;
+        margin-bottom: 16px;
+        border-bottom: 1px solid #e0e0e0;
+        background-color: #f8f9fa;
+        border-radius: 4px 4px 0 0;
+      }
+
+      .scoring-tab {
+        padding: 10px 16px;
+        cursor: pointer;
+        color: #757575;
+        font-weight: 500;
+        position: relative;
+        transition: all 0.3s;
+        flex: 1;
+        text-align: center;
+        font-size: 14px;
+      }
+
+      .scoring-tab.active {
+        color: #9c27b0;
+        background-color: white;
+      }
+
+      .scoring-tab.active::after {
+        content: "";
+        position: absolute;
+        bottom: -1px;
+        left: 0;
+        width: 100%;
+        height: 2px;
+        background-color: #9c27b0;
+      }
+
+      .scoring-tab-content {
+        display: none;
+        padding: 16px 0;
+      }
+
+      .scoring-tab-content.active {
+        display: block;
+      }
+
+      .scoring-instruction {
+        background-color: #f3e5f5;
+        border-radius: 4px;
+        padding: 12px;
+        margin-bottom: 16px;
+        border-left: 4px solid #9c27b0;
+      }
+
+      .scoring-instruction p {
+        margin: 0;
+        font-size: 14px;
+        color: #4a148c;
+        display: flex;
+        align-items: center;
+      }
+
+      .property-numbers-input {
+        margin-bottom: 16px;
+      }
+
+      .input-help {
+        margin-top: 8px;
+        padding-left: 4px;
+      }
+
       .url-instruction {
         font-size: 13px;
         color: #757575;
@@ -517,6 +594,8 @@
         /* 特定のボタンスタイル */
         #register-btn,
         #full-update-btn,
+        #score-all-btn,
+        #score-selected-btn,
         #add-url-btn {
           width: 100%;
           max-width: 300px;
@@ -528,6 +607,13 @@
           text-align: center;
           padding: 12px;
           font-size: 15px;
+        }
+
+        .scoring-tab {
+          flex-grow: 1;
+          text-align: center;
+          padding: 10px;
+          font-size: 14px;
         }
       }
 
@@ -547,6 +633,11 @@
         .tab {
           font-size: 16px;
           padding: 14px;
+        }
+
+        .scoring-tab {
+          font-size: 15px;
+          padding: 12px;
         }
       }
 
@@ -568,6 +659,19 @@
           font-size: 14px;
           padding: 10px;
         }
+
+        .scoring-tab {
+          font-size: 13px;
+          padding: 8px;
+        }
+
+        .scoring-instruction {
+          padding: 10px;
+        }
+
+        .scoring-instruction p {
+          font-size: 13px;
+        }
       }
     </style>
   </head>
@@ -587,6 +691,7 @@
         <div class="tabs">
           <div class="tab active" data-tab="new-properties">新規物件登録</div>
           <div class="tab" data-tab="update-properties">全物件更新</div>
+          <div class="tab" data-tab="scoring-properties">物件採点</div>
         </div>
 
         <div class="tab-content active" id="new-properties">
@@ -671,6 +776,102 @@
               <i class="material-icons">update</i>
               全物件情報更新
             </button>
+          </div>
+        </div>
+
+        <div class="tab-content" id="scoring-properties">
+          <h3 class="card-title">物件採点</h3>
+          <p class="card-description">
+            登録済みの物件を評価基準に基づいて採点します。
+          </p>
+
+          <div class="scoring-tabs">
+            <div class="scoring-tab active" data-scoring-tab="all-scoring">
+              全物件採点
+            </div>
+            <div class="scoring-tab" data-scoring-tab="selected-scoring">
+              指定物件採点
+            </div>
+          </div>
+
+          <div class="scoring-tab-content active" id="all-scoring">
+            <div class="scoring-instruction">
+              <p>
+                <i
+                  class="material-icons"
+                  style="
+                    vertical-align: middle;
+                    margin-right: 8px;
+                    color: #3f51b5;
+                  "
+                  >info</i
+                >
+                登録済みの全物件を評価基準マスタに基づいて採点します。
+              </p>
+            </div>
+
+            <div class="button-container">
+              <button
+                id="score-all-btn"
+                class="mdl-button mdl-js-button mdl-button--raised mdl-button--colored mdl-js-ripple-effect scoring-all"
+              >
+                <i class="material-icons">assessment</i>
+                全物件採点実行
+              </button>
+            </div>
+          </div>
+
+          <div class="scoring-tab-content" id="selected-scoring">
+            <div class="scoring-instruction">
+              <p>
+                <i
+                  class="material-icons"
+                  style="
+                    vertical-align: middle;
+                    margin-right: 8px;
+                    color: #3f51b5;
+                  "
+                  >info</i
+                >
+                指定した物件番号の物件のみを採点します。
+              </p>
+            </div>
+
+            <div class="property-numbers-input">
+              <div
+                class="mdl-textfield mdl-js-textfield mdl-textfield--floating-label"
+              >
+                <input
+                  class="mdl-textfield__input"
+                  type="text"
+                  id="property-numbers"
+                  placeholder="例: 1,2,3,5"
+                />
+                <label class="mdl-textfield__label" for="property-numbers"
+                  >物件番号（カンマ区切り）</label
+                >
+              </div>
+              <div class="input-help">
+                <small style="color: #757575">
+                  <i
+                    class="material-icons"
+                    style="font-size: 16px; vertical-align: middle"
+                    >help_outline</i
+                  >
+                  物件情報シートの#列の番号を入力してください
+                </small>
+              </div>
+            </div>
+
+            <div class="button-container">
+              <button
+                id="score-selected-btn"
+                class="mdl-button mdl-js-button mdl-button--raised mdl-button--colored mdl-js-ripple-effect scoring-selected"
+              >
+                <i class="material-icons">assessment</i>
+                指定物件採点実行
+              </button>
+            </div>
           </div>
         </div>
 
@@ -1073,88 +1274,96 @@
       // タップ反応性を改善するための高度なイベントハンドラー
       function setupEnhancedTouchHandlers() {
         const buttons = document.querySelectorAll(
-          "#register-btn, #full-update-btn, #add-url-btn, .remove-url"
+          "#register-btn, #full-update-btn, #score-all-btn, #score-selected-btn, #add-url-btn, .remove-url"
         );
 
-        buttons.forEach((button) => {
-          // タッチ開始時の処理
-          button.addEventListener(
-            "touchstart",
-            function (e) {
-              // タッチフィードバックの追加
-              this.classList.add("touch-active");
+        // 全ての入力欄のリアルタイムバリデーションを設定する関数
+        function setupAllUrlInputValidations() {
+          const urlInputs = document.getElementById("url-inputs");
+          const inputs = urlInputs.querySelectorAll("input");
+          inputs.forEach(setupUrlInputValidation);
+        }
 
-              // タッチ開始時間の記録
-              this.touchStartTime = Date.now();
-            },
-            { passive: true }
-          );
+        buttons.forEach((button) => {
+          // 既存のイベントリスナーを削除
+          button.removeEventListener("click", button._clickHandler);
+          button.removeEventListener("touchstart", button._touchStartHandler);
+          button.removeEventListener("touchend", button._touchEndHandler);
+
+          // タッチ開始時の処理
+          const touchStartHandler = function (e) {
+            // タッチフィードバックの追加
+            this.classList.add("touch-active");
+            // タッチ開始時間の記録
+            this.touchStartTime = Date.now();
+          };
+          button.addEventListener("touchstart", touchStartHandler, {
+            passive: true,
+          });
+          button._touchStartHandler = touchStartHandler;
 
           // タッチ終了時の処理
-          button.addEventListener(
-            "touchend",
-            function (e) {
-              // タッチフィードバックの削除
-              this.classList.remove("touch-active");
+          const touchEndHandler = function (e) {
+            // タッチフィードバックの削除
+            this.classList.remove("touch-active");
 
-              // タッチ時間の計算
-              const touchDuration = Date.now() - this.touchStartTime;
+            // タッチ時間の計算
+            const touchDuration = Date.now() - this.touchStartTime;
 
-              // 短いタップ（300ms未満）の場合のみ処理を実行
-              if (touchDuration < 300) {
-                e.preventDefault();
+            // 短いタップ（300ms未満）の場合のみ処理を実行
+            if (touchDuration < 300) {
+              e.preventDefault();
+              executeButtonAction(this, setupAllUrlInputValidations);
+            }
+          };
+          button.addEventListener("touchend", touchEndHandler, {
+            passive: false,
+          });
+          button._touchEndHandler = touchEndHandler;
 
-                // ボタンの種類に応じた処理
-                switch (this.id) {
-                  case "register-btn":
-                    registerNewProperties();
-                    break;
-                  case "full-update-btn":
-                    updateAllProperties();
-                    break;
-                  case "add-url-btn":
-                    addUrlInput();
-                    break;
-                  default:
-                    // 削除ボタンの処理
-                    if (this.classList.contains("remove-url")) {
-                      const urlInputRow = this.closest(".url-input-row");
-                      urlInputRow.parentNode.removeChild(urlInputRow);
-                    }
-                }
-              }
-            },
-            { passive: false }
-          );
-
-          // クリックイベントのバックアップ
-          button.addEventListener("click", function (e) {
+          // クリックイベント（デスクトップ用）
+          const clickHandler = function (e) {
             e.preventDefault();
-
             // タッチイベントが既に処理されていない場合のみ実行
             if (
               !this.touchStartTime ||
               Date.now() - this.touchStartTime >= 300
             ) {
-              switch (this.id) {
-                case "register-btn":
-                  registerNewProperties();
-                  break;
-                case "full-update-btn":
-                  updateAllProperties();
-                  break;
-                case "add-url-btn":
-                  addUrlInput();
-                  break;
-                default:
-                  if (this.classList.contains("remove-url")) {
-                    const urlInputRow = this.closest(".url-input-row");
-                    urlInputRow.parentNode.removeChild(urlInputRow);
-                  }
-              }
+              executeButtonAction(this, setupAllUrlInputValidations);
             }
-          });
+          };
+          button.addEventListener("click", clickHandler);
+          button._clickHandler = clickHandler;
         });
+      }
+
+      // ボタンアクション実行関数
+      function executeButtonAction(button, setupAllUrlInputValidations) {
+        switch (button.id) {
+          case "register-btn":
+            registerNewProperties();
+            break;
+          case "full-update-btn":
+            updateAllProperties();
+            break;
+          case "score-all-btn":
+            scoreAllProperties();
+            break;
+          case "score-selected-btn":
+            scoreSelectedProperties();
+            break;
+          case "add-url-btn":
+            addUrlInput();
+            // 新しく追加された入力欄のバリデーションを設定
+            setTimeout(() => setupAllUrlInputValidations(), 100);
+            break;
+          default:
+            // 削除ボタンの処理
+            if (button.classList.contains("remove-url")) {
+              const urlInputRow = button.closest(".url-input-row");
+              urlInputRow.parentNode.removeChild(urlInputRow);
+            }
+        }
       }
 
       // イベントリスナーの設定
@@ -1185,24 +1394,13 @@
           });
         });
 
-        // URL追加ボタン
-        document
-          .getElementById("add-url-btn")
-          .addEventListener("click", function () {
-            addUrlInput();
-            // 新しく追加された入力欄のバリデーションを設定
-            setupAllUrlInputValidations();
+        // 採点タブのイベントリスナー
+        document.querySelectorAll(".scoring-tab").forEach((tab) => {
+          tab.addEventListener("click", function () {
+            const tabId = this.getAttribute("data-scoring-tab");
+            switchScoringTab(tabId);
           });
-
-        // 新規登録ボタン
-        document
-          .getElementById("register-btn")
-          .addEventListener("click", registerNewProperties);
-
-        // 全物件更新ボタン
-        document
-          .getElementById("full-update-btn")
-          .addEventListener("click", updateAllProperties);
+        });
 
         // 初期化時に全てのMaterial Designコンポーネントを再初期化
         function reinitializeMaterialComponents() {
@@ -1219,9 +1417,192 @@
         // 初期化と再初期化のタイミングで呼び出し
         reinitializeMaterialComponents();
 
-        // タップ反応性の高度な改善
+        // タップ反応性の高度な改善（これのみでボタンイベント処理）
         setupEnhancedTouchHandlers();
       });
+
+      // 全物件採点処理
+      function scoreAllProperties() {
+        // 確認ダイアログを表示
+        if (!confirm("全物件の採点処理を実行します。よろしいですか？")) {
+          return;
+        }
+
+        // スピナーを表示
+        document.querySelector(".spinner").style.display = "flex";
+        document.getElementById("status-message").textContent =
+          "全物件を採点中...";
+
+        // GAS関数を呼び出し
+        google.script.run
+          .withSuccessHandler(function (result) {
+            // 成功時の処理
+            displayScoringResult(result, false);
+            // スピナーを非表示
+            document.querySelector(".spinner").style.display = "none";
+            // 最終実行時間を更新
+            updateLastRunTime();
+          })
+          .withFailureHandler(function (error) {
+            // 失敗時の処理
+            displayScoringResult(
+              {
+                status: "error",
+                error_message:
+                  error.message || "採点処理中にエラーが発生しました",
+              },
+              true
+            );
+            // スピナーを非表示
+            document.querySelector(".spinner").style.display = "none";
+          })
+          .runScoringAll();
+      }
+
+      // 指定物件採点処理
+      function scoreSelectedProperties() {
+        const propertyNumbers = document
+          .getElementById("property-numbers")
+          .value.trim();
+
+        if (!propertyNumbers) {
+          alert("物件番号を入力してください");
+          return;
+        }
+
+        // 物件番号の形式チェック
+        const numbers = propertyNumbers
+          .split(",")
+          .map((n) => n.trim())
+          .filter((n) => n);
+        if (numbers.length === 0) {
+          alert("有効な物件番号を入力してください");
+          return;
+        }
+
+        // 数値チェック
+        const invalidNumbers = numbers.filter((n) => isNaN(parseInt(n)));
+        if (invalidNumbers.length > 0) {
+          alert(`無効な物件番号が含まれています: ${invalidNumbers.join(", ")}`);
+          return;
+        }
+
+        // 確認ダイアログを表示
+        const confirmMessage = `物件番号 ${propertyNumbers} の採点処理を実行します。よろしいですか？`;
+        if (!confirm(confirmMessage)) {
+          return;
+        }
+
+        // スピナーを表示
+        document.querySelector(".spinner").style.display = "flex";
+        document.getElementById("status-message").textContent =
+          "指定物件を採点中...";
+
+        // GAS関数を呼び出し
+        google.script.run
+          .withSuccessHandler(function (result) {
+            // 成功時の処理
+            displayScoringResult(result, false);
+            // スピナーを非表示
+            document.querySelector(".spinner").style.display = "none";
+            // 最終実行時間を更新
+            updateLastRunTime();
+            // 成功したら入力欄をクリア
+            if (result.status !== "error") {
+              document.getElementById("property-numbers").value = "";
+              // Material Design状態をリセット
+              const textfield =
+                document.getElementById("property-numbers").parentNode;
+              textfield.classList.remove("is-dirty");
+              textfield.classList.remove("is-focused");
+            }
+          })
+          .withFailureHandler(function (error) {
+            // 失敗時の処理
+            displayScoringResult(
+              {
+                status: "error",
+                error_message:
+                  error.message || "採点処理中にエラーが発生しました",
+              },
+              true
+            );
+            // スピナーを非表示
+            document.querySelector(".spinner").style.display = "none";
+          })
+          .runScoringSelected(propertyNumbers);
+      }
+
+      // 採点結果表示用の関数
+      function displayScoringResult(result, isError) {
+        const resultCard = document.getElementById("result-card");
+        const resultTitle = document.getElementById("result-title");
+        const resultContent = document.getElementById("result-content");
+        const resultTimestamp = document.getElementById("result-timestamp");
+
+        // 現在時刻
+        const now = new Date();
+        resultTimestamp.textContent = now.toLocaleString("ja-JP");
+
+        // エラークラスをリセット
+        resultCard.classList.remove("error-card");
+
+        if (isError) {
+          resultCard.classList.add("error-card");
+          resultTitle.textContent = "採点エラー";
+          resultContent.innerHTML = `<p>${result.error_message}</p>`;
+        } else {
+          if (result.status === "error") {
+            resultCard.classList.add("error-card");
+            resultTitle.textContent = "採点エラー";
+            resultContent.innerHTML = `<p>${
+              result.error_message || "採点処理中に不明なエラーが発生しました"
+            }</p>`;
+          } else {
+            resultTitle.textContent = "採点完了";
+
+            // 結果の内容を整形
+            let html = "";
+            if (result.scored_properties !== undefined) {
+              html += `<p>採点完了物件数: ${result.scored_properties}件</p>`;
+            }
+            if (result.target_properties !== undefined) {
+              html += `<p>対象物件数: ${result.target_properties}件</p>`;
+            }
+            if (result.message) {
+              html += `<p>${result.message}</p>`;
+            }
+            if (!html) {
+              html = "<p>採点処理が正常に完了しました。</p>";
+            }
+
+            resultContent.innerHTML = html;
+          }
+        }
+
+        // 結果カードを表示
+        resultCard.style.display = "block";
+
+        // スムーズにスクロール
+        resultCard.scrollIntoView({ behavior: "smooth" });
+      }
+
+      // 採点タブ切り替え関数
+      function switchScoringTab(tabId) {
+        // 採点タブの切り替え
+        document.querySelectorAll(".scoring-tab").forEach((tab) => {
+          tab.classList.remove("active");
+        });
+        document
+          .querySelector(`.scoring-tab[data-scoring-tab="${tabId}"]`)
+          .classList.add("active");
+
+        // 採点タブコンテンツの切り替え
+        document.querySelectorAll(".scoring-tab-content").forEach((content) => {
+          content.classList.remove("active");
+        });
+        document.getElementById(tabId).classList.add("active");
+      }
     </script>
   </body>
 </html>
